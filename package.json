@@ -1,0 +1,11 @@
+{
+  "name": "citaspeggy-front",
+  "version": "1.0.0",
+  "description": "CitasPeggy - Sistema de turnos y citas para negocios - Proyecto Integrador CESDE",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "web": "npx serve ."
+  }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CitasPeggy — Agenda tu cita sin filas ni llamadas</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="#" class="logo" data-action="ir" data-vista="catalogo">CITASPEGGY</a>
+      <button class="menu-toggle" aria-label="Abrir menú" data-action="menu">☰</button>
+      <nav class="nav" id="nav" aria-label="Principal"></nav>
+    </div>
+  </header>
+
+  <main id="app" class="container" aria-live="polite"></main>
+
+  <footer class="footer">
+    <div class="container">© CitasPeggy · Proyecto Integrador CESDE · Soporte · Términos</div>
+  </footer>
+
+  <dialog id="dlgAuth" class="dialog">
+    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="login" role="tab">Iniciar sesión</button>
+      <button class="tab" data-tab="registro" role="tab">Registrarme</button>
+    </div>
+    <form id="formLogin" class="form">
+      <label>Correo electrónico<input type="email" name="correo" required autocomplete="username"></label>
+      <label>Contraseña<input type="password" name="contrasena" required autocomplete="current-password"></label>
+      <p class="form__error" id="errLogin" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit">Ingresar</button>
+      <p class="hint">Demo cliente: <code>ana@correo.com</code> / <code>clave123</code><br>
+      Demo administrador: <code>admin@citaspeggy.com</code> / <code>admin123</code></p>
+    </form>
+    <form id="formRegistro" class="form" hidden>
+      <div class="form__row">
+        <label>Nombre<input name="nombre" required></label>
+        <label>Apellido<input name="apellido" required></label>
+      </div>
+      <div class="form__row">
+        <label>Tipo de documento
+          <select name="docType"><option>CC</option><option>TI</option><option>CE</option></select>
+        </label>
+        <label>Teléfono<input name="telefono" inputmode="tel" required></label>
+      </div>
+      <label>Correo electrónico<input type="email" name="correo" required></label>
+      <div class="form__row">
+        <label>Contraseña<input type="password" name="contrasena" minlength="6" required autocomplete="new-password"></label>
+        <label>Confirmar contraseña<input type="password" name="confirmar" minlength="6" required autocomplete="new-password"></label>
+      </div>
+      <p class="form__error" id="errRegistro" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit">Crear cuenta</button>
+    </form>
+  </dialog>
+
+  <dialog id="dlgComprobante" class="dialog">
+    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
+    <h2>Comprobante digital</h2>
+    <pre id="comprobanteTexto" class="comprobante"></pre>
+    <form method="dialog"><button class="btn btn--primary btn--block">Cerrar</button></form>
+  </dialog>
+
+  <script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

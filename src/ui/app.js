@@ -1,0 +1,525 @@
+// app.js - Interfaz web de CitasPeggy
+// Usa las mismas clases, repositorios y servicios que main.js: la pantalla solo dibuja
+// y llama a los servicios; las reglas de negocio no se repiten aquí.
+
+import Administracion from '../classes/administracion.js';
+import { EstadoCita } from '../enums/estadoCita.js';
+import { registrarCliente, iniciarSesion } from '../services/usuarioService.js';
+import {
+    buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, desactivarServicio
+} from '../services/negocioService.js';
+import {
+    horariosDisponibles, todasLasFranjas, reservarTemporal, confirmarCita, historialCliente,
+    agendaDelDia, cancelarCita, reprogramarCita, completarCita, marcarNoAsistio,
+    marcarNoAsistidasAutomaticas, metricasNegocio, obtenerComprobante
+} from '../services/citaService.js';
+import { buscarNegocioPorId, buscarServicioPorId, listarNegocios } from '../repository/negocioRepository.js';
+import { buscarPersonaPorId } from '../repository/personaRepository.js';
+import { eliminarBloqueo } from '../repository/citaRepository.js';
+import { cargarDatosDemo } from './datosDemo.js';
+
+const ICONOS = { Barbería: "💈", Spa: "🧖", Consultorio: "🦷", Restaurante: "🍽️" };
+const SEGUNDOS_BLOQUEO = 5 * 60;
+
+// ===== Estado de la pantalla =====
+const estado = {
+    usuario: null,
+    vista: "catalogo",
+    filtro: { nombre: "", tipo: "" },
+    negocioId: null,
+    flujo: null,       // { servicioId, especialistaId, fecha, hora, espAsignado, bloqueo, notas }
+    mensaje: null,     // { tipo: "ok" | "error", texto }
+    panel: { negocioId: null, especialistaId: null, fecha: null, desde: null, hasta: null },
+    reprogramando: null
+};
+let timerId = null;
+
+// ===== Utilidades =====
+const $ = (sel, raiz = document) => raiz.querySelector(sel);
+const app = $("#app");
+
+/** Escapa texto antes de ponerlo dentro de HTML (evita que un nombre o nota inyecte código). */
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const hoy = () => iso(new Date());
+const sumarDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+const dinero = (n) => n === 0 ? "Gratis" : `$${n.toLocaleString("es-CO")}`;
+const claseEstado = (e) => ({ [EstadoCita.CONFIRMADA]: "confirmada", [EstadoCita.COMPLETADA]: "atendida", [EstadoCita.NO_ASISTIO]: "no-asistio", [EstadoCita.CANCELADA]: "cancelada", [EstadoCita.PENDIENTE]: "pendiente" }[e]);
+const badge = (e) => `<span class="badge badge--${claseEstado(e)}">${esc(e)}</span>`;
+const fechaLarga = (f) => new Date(`${f}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+const esAdmin = () => estado.usuario instanceof Administracion;
+
+function avisar(tipo, texto) { estado.mensaje = { tipo, texto }; }
+function mensajeHtml() {
+    if (!estado.mensaje) return "";
+    const { tipo, texto } = estado.mensaje;
+    estado.mensaje = null;
+    return `<div class="alert alert--${tipo}" role="${tipo === "error" ? "alert" : "status"}">${esc(texto)}</div>`;
+}
+function ir(vista, extra = {}) {
+    if (vista !== "agendar") cancelarFlujo();
+    Object.assign(estado, { vista }, extra);
+    render();
+    window.scrollTo({ top: 0 });
+}
+
+// ===== Barra de navegación =====
+function renderNav() {
+    const enlace = (v, t) => `<button class="nav__link ${estado.vista === v ? "is-active" : ""}" data-action="ir" data-vista="${v}">${t}</button>`;
+    let html = enlace("catalogo", "Negocios");
+    if (estado.usuario && !esAdmin()) html += enlace("citas", "Mis citas");
+    if (esAdmin()) html += enlace("panel", "Panel del negocio");
+    if (estado.usuario) {
+        html += `<span class="nav__user">Hola, ${esc(estado.usuario.nombre)}</span><button class="nav__link" data-action="salir">Cerrar sesión</button>`;
+    } else {
+        html += `<button class="btn btn--primary btn--small" data-action="abrir-auth">Ingresar</button>`;
+    }
+    $("#nav").innerHTML = html;
+}
+
+// ===== Vista: catálogo (HU01) =====
+function viewCatalogo() {
+    const tipos = [...new Set(listarNegocios().map(n => n.tipo))];
+    return `
+    ${mensajeHtml()}
+    <section class="hero">
+      <h1>Agenda tu cita sin filas ni llamadas</h1>
+      <p class="muted">Elige negocio, servicio, especialista y hora en menos de 2 minutos.</p>
+      <div class="filters">
+        <input id="fNombre" type="search" placeholder="Buscar negocio por nombre…" value="${esc(estado.filtro.nombre)}" aria-label="Buscar negocio por nombre">
+        <select id="fTipo" aria-label="Filtrar por categoría">
+          <option value="">Todas las categorías</option>
+          ${tipos.map(t => `<option ${estado.filtro.tipo === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+        </select>
+        <button class="btn" data-action="limpiar">Limpiar</button>
+      </div>
+    </section>
+    <div class="chips" id="chips"></div>
+    <div id="grid"></div>`;
+}
+function pintarCatalogo() {
+    const tipos = [...new Set(listarNegocios().map(n => n.tipo))];
+    $("#chips").innerHTML = tipos.map(t => `<button class="chip ${estado.filtro.tipo === t ? "is-active" : ""}" data-action="chip" data-tipo="${esc(t)}">${esc(t)}s</button>`).join("");
+    const lista = buscarNegocios(estado.filtro);
+    $("#grid").innerHTML = lista.length === 0
+        ? `<div class="empty">No encontramos negocios con esa búsqueda. Prueba con otro nombre o categoría.</div>`
+        : `<div class="grid">${lista.map(n => `
+          <article class="card">
+            <div class="card__img" aria-hidden="true">${ICONOS[n.tipo] ?? "🏪"}</div>
+            <h3>${esc(n.nombre)}</h3>
+            <div class="card__meta">${esc(n.tipo)} · ${esc(n.direccion)}</div>
+            <div class="card__row"><span class="rating">★ 4.8</span>
+              <button class="btn btn--primary btn--small" data-action="ver-servicios" data-id="${n.businessId}">Ver servicios</button></div>
+          </article>`).join("")}</div>`;
+}
+
+// ===== Vista: servicios de un negocio (HU02 y HU03) =====
+function viewServicios() {
+    const n = buscarNegocioPorId(estado.negocioId);
+    const servicios = listarServicios(n.businessId);
+    const esps = especialistasDelNegocio(n.businessId);
+    return `
+    <button class="back" data-action="ir" data-vista="catalogo">← Volver a los negocios</button>
+    ${mensajeHtml()}
+    <h1>${esc(n.nombre)}</h1>
+    <p class="muted">${esc(n.tipo)} · ${esc(n.direccion)} · Tel. ${esc(n.telefono)}</p>
+    <h2>Servicios</h2>
+    ${servicios.length === 0 ? `<div class="empty">Este negocio todavía no tiene servicios activos.</div>` : `
+    <div class="list">${servicios.map(s => `
+      <div class="item">
+        <div class="item__main">
+          <h3>${esc(s.nombre)}</h3>
+          <span class="muted">${s.duracionMinutos} min</span> · <span class="item__price">${dinero(s.precio)}</span>
+          <details><summary>Ver detalle</summary>
+            <p>${esc(s.descripcion)}</p>
+            <p>Atienden: ${esps.map(e => esc(e.nombreCompleto)).join(", ") || "—"}</p>
+          </details>
+        </div>
+        <button class="btn btn--primary" data-action="agendar" data-id="${s.serviceId}">Agendar</button>
+      </div>`).join("")}</div>`}`;
+}
+
+// ===== Flujo de agendamiento (HU04 a HU07) =====
+function iniciarFlujo(servicioId) {
+    if (!estado.usuario) { estado.pendiente = servicioId; avisar("error", "Inicia sesión para agendar tu cita."); render(); abrirAuth(); return; }
+    if (esAdmin()) { avisar("error", "Ingresa como cliente para agendar una cita."); render(); return; }
+    estado.flujo = { servicioId, especialistaId: "any", fecha: sumarDias(1), hora: null, espAsignado: null, bloqueo: null, notas: "" };
+    ir("agendar");
+}
+function liberarBloqueo() {
+    if (estado.flujo?.bloqueo) eliminarBloqueo(estado.flujo.bloqueo.id);
+    if (estado.flujo) { estado.flujo.bloqueo = null; estado.flujo.hora = null; estado.flujo.espAsignado = null; }
+    clearInterval(timerId); timerId = null;
+}
+function cancelarFlujo() { liberarBloqueo(); estado.flujo = null; }
+
+/** Qué especialistas cuentan según la elección del cliente ("any" = todos). */
+function candidatos(f) {
+    const srv = buscarServicioPorId(f.servicioId);
+    const todos = especialistasDelNegocio(srv.negocioId);
+    return f.especialistaId === "any" ? todos : todos.filter(e => e.id === Number(f.especialistaId));
+}
+function horasLibres(f) {
+    const libres = new Set();
+    candidatos(f).forEach(e => horariosDisponibles(e.id, f.fecha, f.servicioId).forEach(h => libres.add(h)));
+    return libres;
+}
+
+function viewAgendar() {
+    const f = estado.flujo;
+    const srv = buscarServicioPorId(f.servicioId);
+    const neg = buscarNegocioPorId(srv.negocioId);
+    const esps = especialistasDelNegocio(neg.businessId);
+    const paso = f.hora ? 4 : 3;
+    const pasos = ["1 Servicio", "2 Especialista", "3 Fecha y hora", "4 Confirmar"];
+    return `
+    <button class="back" data-action="ir" data-vista="servicios" data-id="${neg.businessId}">← Volver a ${esc(neg.nombre)}</button>
+    ${mensajeHtml()}
+    <ol class="steps">${pasos.map((p, i) => `<li class="${i + 1 < paso ? "is-done" : i + 1 === paso ? "is-active" : ""}">${p}</li>`).join("")}</ol>
+    <h1>Agendar: ${esc(srv.nombre)}</h1>
+    <p class="muted">${esc(neg.nombre)} · ${srv.duracionMinutos} min · ${dinero(srv.precio)}</p>
+
+    <div class="panel">
+      <h3>Especialista</h3>
+      <div class="chips" role="radiogroup" aria-label="Especialista">
+        <button class="chip ${f.especialistaId === "any" ? "is-active" : ""}" role="radio" aria-checked="${f.especialistaId === "any"}" data-action="esp" data-id="any">Cualquier especialista disponible</button>
+        ${esps.map(e => `<button class="chip ${String(f.especialistaId) === String(e.id) ? "is-active" : ""}" role="radio" aria-checked="${String(f.especialistaId) === String(e.id)}" data-action="esp" data-id="${e.id}">${esc(e.nombreCompleto)}</button>`).join("")}
+      </div>
+    </div>
+
+    <div class="two-cols">
+      <div class="panel">
+        <h3>Fecha</h3>
+        <input type="date" id="fecha" value="${esc(f.fecha)}" min="${hoy()}" aria-label="Fecha de la cita">
+        <p class="hint">${esc(fechaLarga(f.fecha))}</p>
+      </div>
+      <div class="panel">
+        <h3>Horarios</h3>
+        <div id="slots"></div>
+        <p class="hint">Los horarios en gris están ocupados, reservados por otro cliente o ya pasaron.</p>
+      </div>
+    </div>
+    <div id="resumen"></div>`;
+}
+function pintarSlots() {
+    const f = estado.flujo;
+    const libres = horasLibres(f);
+    const todas = todasLasFranjas(f.servicioId);
+    const hayLibres = todas.some(h => libres.has(h));
+    $("#slots").innerHTML = (hayLibres ? "" : `<div class="empty">No hay horarios libres este día. Prueba otra fecha u otro especialista.</div>`) +
+        `<div class="slots">${todas.map(h => `<button class="slot ${f.hora === h ? "is-selected" : ""}" data-action="hora" data-hora="${h}" ${libres.has(h) ? "" : "disabled"} aria-pressed="${f.hora === h}">${h}</button>`).join("")}</div>`;
+}
+function pintarResumen() {
+    const f = estado.flujo;
+    const cont = $("#resumen");
+    if (!f.bloqueo) { cont.innerHTML = ""; return; }
+    const srv = buscarServicioPorId(f.servicioId);
+    const esp = buscarPersonaPorId(f.espAsignado);
+    cont.innerHTML = `
+    <div class="panel summary">
+      <h3>Resumen de tu cita</h3>
+      <dl>
+        <dt>Servicio</dt><dd>${esc(srv.nombre)}</dd>
+        <dt>Especialista</dt><dd>${esc(esp.nombreCompleto)}</dd>
+        <dt>Fecha</dt><dd>${esc(fechaLarga(f.fecha))}</dd>
+        <dt>Hora</dt><dd>${esc(f.hora)}</dd>
+        <dt>Precio</dt><dd>${dinero(srv.precio)}</dd>
+      </dl>
+      <label class="form"><span class="muted">Notas para el especialista (opcional)</span>
+        <textarea id="notas" rows="2" maxlength="200" placeholder="Ej: prefiero el corte más corto">${esc(f.notas)}</textarea></label>
+      <p><span class="timer" id="timer" role="timer" aria-live="off">Horario reservado · 05:00</span></p>
+      <button class="btn btn--primary btn--block" data-action="confirmar">Confirmar cita</button>
+    </div>`;
+    iniciarTemporizador();
+}
+function iniciarTemporizador() {
+    clearInterval(timerId);
+    const tick = () => {
+        const f = estado.flujo;
+        if (!f?.bloqueo) { clearInterval(timerId); return; }
+        const resta = Math.round((f.bloqueo.expiraEn - new Date()) / 1000);
+        const t = $("#timer");
+        if (resta <= 0) {
+            liberarBloqueo();
+            avisar("error", "Pasaron 5 minutos y el horario se liberó. Elige la hora de nuevo.");
+            render();
+            return;
+        }
+        if (t) t.textContent = `Horario reservado · ${String(Math.floor(resta / 60)).padStart(2, "0")}:${String(resta % 60).padStart(2, "0")}`;
+    };
+    tick();
+    timerId = setInterval(tick, 1000);
+}
+function elegirHora(hora) {
+    const f = estado.flujo;
+    liberarBloqueo();
+    try {
+        // Con "cualquier especialista" se toma el primero que tenga esa hora libre.
+        const esp = candidatos(f).find(e => horariosDisponibles(e.id, f.fecha, f.servicioId).includes(hora));
+        if (!esp) throw new Error("Ese horario ya no está disponible");
+        f.bloqueo = reservarTemporal(estado.usuario.id, esp.id, f.servicioId, f.fecha, hora);
+        f.hora = hora; f.espAsignado = esp.id;
+    } catch (e) { avisar("error", e.message); }
+    render();
+}
+function confirmar() {
+    const f = estado.flujo;
+    f.notas = ($("#notas")?.value ?? "").trim();
+    try {
+        const cita = confirmarCita(f.bloqueo.id, f.notas);
+        f.bloqueo = null; clearInterval(timerId); timerId = null;
+        estado.flujo = null;
+        estado.vista = "exito"; estado.citaNueva = cita.agendaId;
+    } catch (e) { liberarBloqueo(); avisar("error", e.message); }
+    render();
+}
+
+function viewExito() {
+    const c = obtenerComprobante(estado.citaNueva);
+    return `
+    <div class="alert alert--ok" role="status">✔ ¡Cita confirmada! Guarda tu código de reserva.</div>
+    <h1>Tu comprobante</h1>
+    <pre class="comprobante">${esc(c)}</pre>
+    <div class="actions" style="margin-top:1rem">
+      <button class="btn btn--primary" data-action="ir" data-vista="citas">Ver mis citas</button>
+      <button class="btn" data-action="ir" data-vista="catalogo">Agendar otra</button>
+    </div>`;
+}
+
+// ===== Vista: mis citas (HU09, HU12, HU16) =====
+function viewCitas() {
+    const filtro = estado.filtroCitas ?? "";
+    const citas = historialCliente(estado.usuario.id, filtro || null);
+    const ahora = new Date();
+    return `
+    ${mensajeHtml()}
+    <h1>Mis citas</h1>
+    <div class="toolbar">
+      <label>Estado
+        <select id="fEstado">
+          <option value="">Todas</option>
+          ${Object.values(EstadoCita).filter(e => e !== EstadoCita.PENDIENTE).map(e => `<option ${filtro === e ? "selected" : ""}>${esc(e)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+    ${citas.length === 0 ? `<div class="empty">Aún no tienes citas. <button class="btn btn--small" data-action="ir" data-vista="catalogo">Agendar una</button></div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Hora</th><th>Negocio / servicio</th><th>Especialista</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>${citas.map(c => {
+          const srv = buscarServicioPorId(c.servicioId);
+          const neg = buscarNegocioPorId(srv.negocioId);
+          const puede = c.puedeCancelarse(ahora);
+          const filaRepro = estado.reprogramando === c.agendaId ? `
+            <tr><td colspan="7"><div class="toolbar">
+              <label>Nueva fecha<input type="date" id="rFecha" min="${hoy()}" value="${esc(estado.reproFecha ?? sumarDias(1))}"></label>
+              <label>Nueva hora<select id="rHora">${horariosDisponibles(c.especialistaId, estado.reproFecha ?? sumarDias(1), c.servicioId).map(h => `<option>${h}</option>`).join("") || "<option value=''>Sin horarios</option>"}</select></label>
+              <button class="btn btn--primary btn--small" data-action="repro-ok" data-id="${c.agendaId}">Guardar cambio</button>
+              <button class="btn btn--small" data-action="repro-no">Cancelar</button>
+            </div></td></tr>` : "";
+          return `<tr>
+            <td>${esc(c.fecha)}</td><td>${esc(c.startTime)}</td>
+            <td><strong>${esc(neg.nombre)}</strong><br><span class="muted">${esc(srv.nombre)}</span></td>
+            <td>${esc(buscarPersonaPorId(c.especialistaId).nombreCompleto)}</td>
+            <td>${esc(c.bookingCode ?? "—")}</td><td>${badge(c.estado)}</td>
+            <td><div class="actions">
+              <button class="btn btn--small" data-action="comprobante" data-id="${c.agendaId}">Comprobante</button>
+              ${puede ? `<button class="btn btn--small" data-action="repro" data-id="${c.agendaId}">Reprogramar</button>
+              <button class="btn btn--small btn--danger" data-action="cancelar" data-id="${c.agendaId}">Cancelar</button>` : ""}
+            </div></td></tr>${filaRepro}`;
+      }).join("")}</tbody></table></div>
+    <p class="hint">Solo puedes cancelar o reprogramar hasta 2 horas antes de la cita.</p>`}`;
+}
+
+// ===== Vista: panel del negocio (HU08, HU11, HU13, HU14) =====
+function viewPanel() {
+    const p = estado.panel;
+    const negocios = listarNegocios();
+    p.negocioId ??= negocios[0].businessId;
+    const esps = especialistasDelNegocio(p.negocioId);
+    if (!esps.some(e => e.id === p.especialistaId)) p.especialistaId = esps[0]?.id ?? null;
+    p.fecha ??= hoy(); p.desde ??= sumarDias(-30); p.hasta ??= sumarDias(30);
+    const m = metricasNegocio(p.negocioId, p.desde, p.hasta);
+    const agenda = p.especialistaId ? agendaDelDia(p.especialistaId, p.fecha) : [];
+    const ahora = new Date();
+    const servicios = listarServicios(p.negocioId);
+    return `
+    ${mensajeHtml()}
+    <h1>Panel del negocio</h1>
+    <div class="toolbar">
+      <label>Negocio<select id="pNegocio">${negocios.map(n => `<option value="${n.businessId}" ${n.businessId === p.negocioId ? "selected" : ""}>${esc(n.nombre)}</option>`).join("")}</select></label>
+    </div>
+
+    <h2>Métricas</h2>
+    <div class="toolbar">
+      <label>Desde<input type="date" id="pDesde" value="${esc(p.desde)}"></label>
+      <label>Hasta<input type="date" id="pHasta" value="${esc(p.hasta)}"></label>
+      <button class="btn btn--small" data-action="auto-noshow">Marcar «No asistió» vencidas (24 h)</button>
+    </div>
+    <div class="tiles">
+      <div class="tile tile--main"><div class="tile__label">Inasistencias</div><div class="tile__value">${m.porcentajeInasistencia}%</div></div>
+      <div class="tile"><div class="tile__label">Citas totales</div><div class="tile__value">${m.total}</div></div>
+      <div class="tile"><div class="tile__label">Atendidas</div><div class="tile__value">${m.atendidas}</div></div>
+      <div class="tile"><div class="tile__label">No asistió</div><div class="tile__value">${m.noAsistio}</div></div>
+      <div class="tile"><div class="tile__label">Canceladas</div><div class="tile__value">${m.canceladas}</div></div>
+    </div>
+    ${m.total === 0 ? `<p class="hint">No hay citas en ese período.</p>` : ""}
+
+    <h2>Agenda del día</h2>
+    <div class="toolbar">
+      <label>Especialista<select id="pEsp">${esps.map(e => `<option value="${e.id}" ${e.id === p.especialistaId ? "selected" : ""}>${esc(e.nombreCompleto)}</option>`).join("")}</select></label>
+      <label>Fecha<input type="date" id="pFecha" value="${esc(p.fecha)}"></label>
+    </div>
+    ${agenda.length === 0 ? `<div class="empty">No hay citas para esta fecha.</div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Notas</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>${agenda.map(c => {
+          const puedeCerrar = c.estado === EstadoCita.CONFIRMADA && ahora >= c.inicio;
+          return `<tr><td>${esc(c.startTime)}</td><td>${esc(buscarPersonaPorId(c.clienteId).nombreCompleto)}</td>
+            <td>${esc(buscarServicioPorId(c.servicioId).nombre)}</td><td>${esc(c.notas || "—")}</td><td>${badge(c.estado)}</td>
+            <td><div class="actions">
+              <button class="btn btn--small" data-action="atendida" data-id="${c.agendaId}" ${puedeCerrar ? "" : "disabled"}>Atendida</button>
+              <button class="btn btn--small btn--danger" data-action="noasistio" data-id="${c.agendaId}" ${puedeCerrar ? "" : "disabled"}>No asistió</button>
+            </div></td></tr>`;
+      }).join("")}</tbody></table></div>
+    <p class="hint">Los botones se activan cuando llega la hora de la cita.</p>`}
+
+    <h2>Servicios del negocio</h2>
+    <form id="formServicio" class="panel form">
+      <div class="form__row">
+        <label>Nombre<input name="nombre" required></label>
+        <label>Descripción<input name="descripcion" required></label>
+      </div>
+      <div class="form__row">
+        <label>Duración (min)<input name="duracion" type="number" min="15" step="15" value="30" required></label>
+        <label>Precio (COP)<input name="precio" type="number" min="0" step="1000" value="30000" required></label>
+      </div>
+      <button class="btn btn--primary" type="submit">Agregar servicio</button>
+    </form>
+    <div class="list">${servicios.map(s => `
+      <div class="item"><div class="item__main"><h3>${esc(s.nombre)}</h3><span class="muted">${s.duracionMinutos} min</span> · <span class="item__price">${dinero(s.precio)}</span></div>
+      <button class="btn btn--small btn--danger" data-action="desactivar" data-id="${s.serviceId}">Desactivar</button></div>`).join("")}
+    </div>
+    <p class="hint">Desactivar un servicio no borra las citas que ya se agendaron con él.</p>`;
+}
+
+// ===== Render principal =====
+function render() {
+    renderNav();
+    $("#nav").classList.remove("is-open");
+    const vistas = { catalogo: viewCatalogo, servicios: viewServicios, agendar: viewAgendar, exito: viewExito, citas: viewCitas, panel: viewPanel };
+    // Rutas protegidas
+    if ((estado.vista === "citas" && !estado.usuario) || (estado.vista === "panel" && !esAdmin())) estado.vista = "catalogo";
+    if (estado.vista === "agendar" && !estado.flujo) estado.vista = "catalogo";
+    app.innerHTML = vistas[estado.vista]();
+    if (estado.vista === "catalogo") pintarCatalogo();
+    if (estado.vista === "agendar") { pintarSlots(); pintarResumen(); }
+}
+
+// ===== Autenticación (HU01 y HU02 de la plataforma) =====
+const dlgAuth = $("#dlgAuth");
+function abrirAuth() { $("#errLogin").textContent = ""; $("#errRegistro").textContent = ""; if (!dlgAuth.open) dlgAuth.showModal(); }
+function cambiarTab(tab) {
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("is-active", b.dataset.tab === tab));
+    $("#formLogin").hidden = tab !== "login";
+    $("#formRegistro").hidden = tab !== "registro";
+}
+$("#formLogin").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const d = new FormData(ev.target);
+    try {
+        estado.usuario = iniciarSesion(String(d.get("correo")).trim(), String(d.get("contrasena")));
+        dlgAuth.close(); ev.target.reset();
+        avisar("ok", `Bienvenida/o, ${estado.usuario.nombre}.`);
+        if (!esAdmin() && estado.pendiente) { const sid = estado.pendiente; estado.pendiente = null; iniciarFlujo(sid); }
+        else ir(esAdmin() ? "panel" : "catalogo");
+    } catch (e) { $("#errLogin").textContent = e.message; }
+});
+$("#formRegistro").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const d = new FormData(ev.target);
+    try {
+        registrarCliente(d.get("docType"), String(d.get("nombre")).trim(), String(d.get("apellido")).trim(),
+            String(d.get("telefono")).trim(), String(d.get("correo")).trim(), String(d.get("contrasena")), String(d.get("confirmar")));
+        estado.usuario = iniciarSesion(String(d.get("correo")).trim(), String(d.get("contrasena")));
+        dlgAuth.close(); ev.target.reset();
+        avisar("ok", "Cuenta creada. ¡Ya puedes agendar!");
+        ir("catalogo");
+    } catch (e) { $("#errRegistro").textContent = e.message; }
+});
+
+// ===== Eventos (delegación) =====
+document.addEventListener("click", (ev) => {
+    const tab = ev.target.closest(".tab");
+    if (tab) return cambiarTab(tab.dataset.tab);
+    const el = ev.target.closest("[data-action]");
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const accion = {
+        "ir": () => ir(el.dataset.vista, el.dataset.id ? { negocioId: id } : {}),
+        "menu": () => $("#nav").classList.toggle("is-open"),
+        "abrir-auth": abrirAuth,
+        "salir": () => { cancelarFlujo(); estado.usuario = null; avisar("ok", "Sesión cerrada."); ir("catalogo"); },
+        "limpiar": () => { estado.filtro = { nombre: "", tipo: "" }; render(); },
+        "chip": () => { estado.filtro.tipo = estado.filtro.tipo === el.dataset.tipo ? "" : el.dataset.tipo; render(); },
+        "ver-servicios": () => ir("servicios", { negocioId: id }),
+        "agendar": () => iniciarFlujo(id),
+        "esp": () => { liberarBloqueo(); estado.flujo.especialistaId = el.dataset.id; render(); },
+        "hora": () => elegirHora(el.dataset.hora),
+        "confirmar": confirmar,
+        "comprobante": () => { $("#comprobanteTexto").textContent = obtenerComprobante(id); $("#dlgComprobante").showModal(); },
+        "cancelar": () => {
+            if (!confirm("¿Seguro que quieres cancelar esta cita?")) return;
+            try { cancelarCita(id); avisar("ok", "Cita cancelada. El horario quedó libre."); } catch (e) { avisar("error", e.message); }
+            render();
+        },
+        "repro": () => { estado.reprogramando = id; estado.reproFecha = sumarDias(1); render(); },
+        "repro-no": () => { estado.reprogramando = null; render(); },
+        "repro-ok": () => {
+            try {
+                reprogramarCita(id, $("#rFecha").value, $("#rHora").value);
+                avisar("ok", "Cita reprogramada. Conservas tu código de reserva.");
+                estado.reprogramando = null;
+            } catch (e) { avisar("error", e.message); }
+            render();
+        },
+        "atendida": () => cerrarCita(() => completarCita(id), "Cita marcada como atendida."),
+        "noasistio": () => cerrarCita(() => marcarNoAsistio(id), "Cita marcada como «No asistió»."),
+        "auto-noshow": () => { const n = marcarNoAsistidasAutomaticas(); avisar("ok", `${n} cita(s) marcadas como «No asistió».`); render(); },
+        "desactivar": () => { desactivarServicio(id); avisar("ok", "Servicio desactivado. El historial se conserva."); render(); }
+    }[el.dataset.action];
+    accion?.();
+});
+function cerrarCita(fn, ok) { try { fn(); avisar("ok", ok); } catch (e) { avisar("error", e.message); } render(); }
+
+document.addEventListener("input", (ev) => {
+    if (ev.target.id === "fNombre") { estado.filtro.nombre = ev.target.value; pintarCatalogo(); }
+});
+document.addEventListener("change", (ev) => {
+    const t = ev.target, p = estado.panel;
+    const mapa = {
+        fTipo: () => { estado.filtro.tipo = t.value; render(); },
+        fecha: () => { liberarBloqueo(); estado.flujo.fecha = t.value || sumarDias(1); render(); },
+        fEstado: () => { estado.filtroCitas = t.value; render(); },
+        rFecha: () => { estado.reproFecha = t.value; render(); },
+        pNegocio: () => { p.negocioId = Number(t.value); p.especialistaId = null; render(); },
+        pEsp: () => { p.especialistaId = Number(t.value); render(); },
+        pFecha: () => { p.fecha = t.value; render(); },
+        pDesde: () => { p.desde = t.value; render(); },
+        pHasta: () => { p.hasta = t.value; render(); }
+    };
+    mapa[t.id]?.();
+});
+document.addEventListener("submit", (ev) => {
+    if (ev.target.id !== "formServicio") return;
+    ev.preventDefault();
+    const d = new FormData(ev.target);
+    try {
+        crearServicio(estado.panel.negocioId, String(d.get("nombre")).trim(), String(d.get("descripcion")).trim(), Number(d.get("duracion")), Number(d.get("precio")));
+        avisar("ok", "Servicio agregado al catálogo.");
+    } catch (e) { avisar("error", e.message); }
+    render();
+});
+
+// ===== Inicio =====
+cargarDatosDemo();
+render();
