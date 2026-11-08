@@ -34,6 +34,7 @@ const estado = {
     reprogramando: null
 };
 let timerId = null;
+let cuentaRegresivaId = null;
 
 // ===== Utilidades =====
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
@@ -278,8 +279,10 @@ function confirmar() {
 
 function viewExito() {
     const c = obtenerComprobante(estado.citaNueva);
+    const cita = historialCliente(estado.usuario.id).find(cita => cita.agendaId === estado.citaNueva);
     return `
     <div class="alert alert--ok" role="status">✔ ¡Cita confirmada! Guarda tu código de reserva.</div>
+    ${cita ? `<p>Tiempo restante para tu cita: <span class="timer" data-countdown="${cita.inicio.getTime()}" role="timer" aria-live="off"></span></p>` : ""}
     <h1>Tu comprobante</h1>
     <pre class="comprobante">${esc(c)}</pre>
     <div class="actions" style="margin-top:1rem">
@@ -306,13 +309,13 @@ function viewCitas() {
     </div>
     ${citas.length === 0 ? `<div class="empty">Aún no tienes citas. <button class="btn btn--small" data-action="ir" data-vista="catalogo">Agendar una</button></div>` : `
     <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Hora</th><th>Negocio / servicio</th><th>Especialista</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Hora</th><th>Tiempo restante</th><th>Negocio / servicio</th><th>Especialista</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody>${citas.map(c => {
           const srv = buscarServicioPorId(c.servicioId);
           const neg = buscarNegocioPorId(srv.negocioId);
           const puede = c.puedeCancelarse(ahora);
           const filaRepro = estado.reprogramando === c.agendaId ? `
-            <tr><td colspan="7"><div class="toolbar">
+            <tr><td colspan="8"><div class="toolbar">
               <label>Nueva fecha<input type="date" id="rFecha" min="${hoy()}" value="${esc(estado.reproFecha ?? sumarDias(1))}"></label>
               <label>Nueva hora<select id="rHora">${horariosDisponibles(c.especialistaId, estado.reproFecha ?? sumarDias(1), c.servicioId).map(h => `<option>${h}</option>`).join("") || "<option value=''>Sin horarios</option>"}</select></label>
               <button class="btn btn--primary btn--small" data-action="repro-ok" data-id="${c.agendaId}">Guardar cambio</button>
@@ -320,6 +323,7 @@ function viewCitas() {
             </div></td></tr>` : "";
           return `<tr>
             <td>${esc(c.fecha)}</td><td>${esc(c.startTime)}</td>
+            <td>${c.estado === EstadoCita.CONFIRMADA ? `<span class="timer" data-countdown="${c.inicio.getTime()}" role="timer" aria-live="off"></span>` : "—"}</td>
             <td><strong>${esc(neg.nombre)}</strong><br><span class="muted">${esc(srv.nombre)}</span></td>
             <td>${esc(buscarPersonaPorId(c.especialistaId).nombreCompleto)}</td>
             <td>${esc(c.bookingCode ?? "—")}</td><td>${badge(c.estado)}</td>
@@ -330,6 +334,32 @@ function viewCitas() {
             </div></td></tr>${filaRepro}`;
       }).join("")}</tbody></table></div>
     <p class="hint">Solo puedes cancelar o reprogramar hasta 2 horas antes de la cita.</p>`}`;
+}
+
+function iniciarCuentaRegresiva() {
+    clearTimeout(cuentaRegresivaId);
+    const actualizar = () => {
+        const temporizadores = [...document.querySelectorAll("[data-countdown]")];
+        temporizadores.forEach(temporizador => {
+            const segundos = Math.max(0, Math.floor((Number(temporizador.dataset.countdown) - Date.now()) / 1000));
+            if (segundos === 0) {
+                temporizador.textContent = "La cita ya comenzó";
+                return;
+            }
+            const dias = Math.floor(segundos / 86400);
+            const horas = Math.floor((segundos % 86400) / 3600);
+            const minutos = Math.floor((segundos % 3600) / 60);
+            const segundosRestantes = segundos % 60;
+            const dia = dias ? `${dias} d ` : "";
+            temporizador.textContent = `Faltan ${dia}${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`;
+        });
+        if (temporizadores.some(t => Number(t.dataset.countdown) > Date.now())) {
+            cuentaRegresivaId = setTimeout(actualizar, 1000);
+        } else {
+            cuentaRegresivaId = null;
+        }
+    };
+    actualizar();
 }
 
 function viewPerfil() {
@@ -461,6 +491,7 @@ function render() {
     app.innerHTML = vistas[estado.vista]();
     if (estado.vista === "catalogo") pintarCatalogo();
     if (estado.vista === "agendar") { pintarSlots(); pintarResumen(); }
+    iniciarCuentaRegresiva();
 }
 
 // ===== Autenticación (HU01 y HU02 de la plataforma) =====
