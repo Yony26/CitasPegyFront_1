@@ -163,6 +163,13 @@ function candidatos(f) {
     return f.especialistaId === "any" ? todos : todos.filter(e => e.id === Number(f.especialistaId));
 }
 function horasLibres(f) {
+    if (f.bloqueo && f.espAsignado) {
+        const libresDelEspecialista = new Set(
+            horariosDisponibles(f.espAsignado, f.fecha, f.servicioId)
+        );
+        libresDelEspecialista.add(f.hora);
+        return libresDelEspecialista;
+    }
     const libres = new Set();
     candidatos(f).forEach(e => horariosDisponibles(e.id, f.fecha, f.servicioId).forEach(h => libres.add(h)));
     return libres;
@@ -255,6 +262,7 @@ function iniciarTemporizador() {
 }
 function elegirHora(hora) {
     const f = estado.flujo;
+    if (f.bloqueo && f.hora === hora) return;
     liberarBloqueo();
     try {
         // Con "cualquier especialista" se toma el primero que tenga esa hora libre.
