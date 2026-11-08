@@ -1,4 +1,4 @@
-// Repositorio de Negocios y Servicios - CitasPeggy
+// Repositorio de Negocios y Servicios - CitasPegy
 // Almacenamiento en memoria.
 
 const negocios = [];

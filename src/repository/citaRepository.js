@@ -1,4 +1,4 @@
-// Repositorio de Citas (OrdenDelDia) y bloqueos temporales - CitasPeggy
+// Repositorio de Citas (OrdenDelDia) y bloqueos temporales - CitasPegy
 // Almacenamiento en memoria.
 
 const citas = [];

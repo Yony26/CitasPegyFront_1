@@ -1,4 +1,4 @@
-// Clase Servicio - CitasPeggy
+// Clase Servicio - CitasPegy
 // Servicio que ofrece un Negocio (corte de cabello, masaje, consulta...).
 
 export default class Servicio {

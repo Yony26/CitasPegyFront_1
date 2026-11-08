@@ -12,7 +12,7 @@ import {
 
 export const CREDENCIALES_DEMO = {
     cliente: { correo: "ana@correo.com", contrasena: "clave123" },
-    admin: { correo: "admin@citaspeggy.com", contrasena: "admin123" }
+    admin: { correo: "admin@citaspegy.com", contrasena: "admin123" }
 };
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

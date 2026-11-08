@@ -1,4 +1,4 @@
-// Clase Persona - CitasPeggy
+// Clase Persona - CitasPegy
 // Clase BASE de la que heredan Administracion, Cliente y Especialista.
 //
 // Los atributos usan "_" (protegido por convención) y no "#", porque las clases

@@ -1,4 +1,4 @@
-// Enum EstadoCita - CitasPeggy
+// Enum EstadoCita - CitasPegy
 // En JavaScript no existe "enum"; se usa un objeto congelado (no se puede modificar).
 
 export const EstadoCita = Object.freeze({

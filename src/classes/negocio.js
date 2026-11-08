@@ -1,4 +1,4 @@
-// Clase Negocio - CitasPeggy
+// Clase Negocio - CitasPegy
 // Establecimiento que ofrece servicios y emplea especialistas (restaurante, spa, barbería...).
 
 export default class Negocio {

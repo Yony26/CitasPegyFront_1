@@ -1,4 +1,4 @@
-// Clase Administracion - CitasPeggy (hereda de Persona)
+// Clase Administracion - CitasPegy (hereda de Persona)
 // Dueño o administrador del negocio: gestiona servicios, especialistas y métricas.
 
 import Persona from './persona.js';

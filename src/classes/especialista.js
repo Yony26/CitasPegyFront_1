@@ -1,4 +1,4 @@
-// Clase Especialista - CitasPeggy (hereda de Persona)
+// Clase Especialista - CitasPegy (hereda de Persona)
 // Profesional que atiende las citas. Pertenece a un Negocio (negocioId).
 
 import Persona from './persona.js';

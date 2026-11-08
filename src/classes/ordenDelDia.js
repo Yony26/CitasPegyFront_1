@@ -1,4 +1,4 @@
-// Clase OrdenDelDia - CitasPeggy
+// Clase OrdenDelDia - CitasPegy
 // Es la CITA: une a un Cliente, un Especialista y un Servicio en una fecha y hora.
 // Las reglas de cambio de estado viven aquí; los servicios solo las orquestan.
 

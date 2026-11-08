@@ -1,4 +1,4 @@
-// Clase Cliente - CitasPeggy (hereda de Persona)
+// Clase Cliente - CitasPegy (hereda de Persona)
 // Persona que busca un negocio, agenda y gestiona sus citas. No tiene atributos propios.
 
 import Persona from './persona.js';

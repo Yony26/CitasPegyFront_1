@@ -1,4 +1,4 @@
-// Repositorio de Personas - CitasPeggy
+// Repositorio de Personas - CitasPegy
 // Almacenamiento en memoria (arrays). Guarda y busca clientes, especialistas y administradores.
 
 const personas = [];
