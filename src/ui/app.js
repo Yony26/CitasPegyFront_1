@@ -46,6 +46,11 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0
 const hoy = () => iso(new Date());
 const sumarDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
 const dinero = (n) => n === 0 ? "Gratis" : `$${n.toLocaleString("es-CO")}`;
+const horaFin = (hora, duracion) => {
+    const [horas, minutos] = hora.split(":").map(Number);
+    const fin = horas * 60 + minutos + duracion;
+    return `${String(Math.floor(fin / 60)).padStart(2, "0")}:${String(fin % 60).padStart(2, "0")}`;
+};
 const claseEstado = (e) => ({ [EstadoCita.CONFIRMADA]: "confirmada", [EstadoCita.COMPLETADA]: "atendida", [EstadoCita.NO_ASISTIO]: "no-asistio", [EstadoCita.CANCELADA]: "cancelada", [EstadoCita.PENDIENTE]: "pendiente" }[e]);
 const badge = (e) => `<span class="badge badge--${claseEstado(e)}">${esc(e)}</span>`;
 const fechaLarga = (f) => new Date(`${f}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
@@ -163,15 +168,16 @@ function candidatos(f) {
     return f.especialistaId === "any" ? todos : todos.filter(e => e.id === Number(f.especialistaId));
 }
 function horasLibres(f) {
+    const duracion = f.bloqueo?.duracionServicio ?? buscarServicioPorId(f.servicioId).duracionMinutos;
     if (f.bloqueo && f.espAsignado) {
         const libresDelEspecialista = new Set(
-            horariosDisponibles(f.espAsignado, f.fecha, f.servicioId)
+            horariosDisponibles(f.espAsignado, f.fecha, f.servicioId, new Date(), duracion)
         );
         libresDelEspecialista.add(f.hora);
         return libresDelEspecialista;
     }
     const libres = new Set();
-    candidatos(f).forEach(e => horariosDisponibles(e.id, f.fecha, f.servicioId).forEach(h => libres.add(h)));
+    candidatos(f).forEach(e => horariosDisponibles(e.id, f.fecha, f.servicioId, new Date(), duracion).forEach(h => libres.add(h)));
     return libres;
 }
 
@@ -214,7 +220,8 @@ function viewAgendar() {
 function pintarSlots() {
     const f = estado.flujo;
     const libres = horasLibres(f);
-    const todas = todasLasFranjas(f.servicioId);
+    const duracion = f.bloqueo?.duracionServicio ?? buscarServicioPorId(f.servicioId).duracionMinutos;
+    const todas = todasLasFranjas(f.servicioId, duracion);
     const hayLibres = todas.some(h => libres.has(h));
     $("#slots").innerHTML = (hayLibres ? "" : `<div class="empty">No hay horarios libres este día. Prueba otra fecha u otro especialista.</div>`) +
         `<div class="slots">${todas.map(h => `<button class="slot ${f.hora === h ? "is-selected" : ""}" data-action="hora" data-hora="${h}" ${libres.has(h) ? "" : "disabled"} aria-pressed="${f.hora === h}">${h}</button>`).join("")}</div>`;
@@ -225,6 +232,7 @@ function pintarResumen() {
     if (!f.bloqueo) { cont.innerHTML = ""; return; }
     const srv = buscarServicioPorId(f.servicioId);
     const esp = buscarPersonaPorId(f.espAsignado);
+    const duracion = f.bloqueo.duracionServicio ?? srv.duracionMinutos;
     cont.innerHTML = `
     <div class="panel summary">
       <h3>Resumen de tu cita</h3>
@@ -232,7 +240,7 @@ function pintarResumen() {
         <dt>Servicio</dt><dd>${esc(srv.nombre)}</dd>
         <dt>Especialista</dt><dd>${esc(esp.nombreCompleto)}</dd>
         <dt>Fecha</dt><dd>${esc(fechaLarga(f.fecha))}</dd>
-        <dt>Hora</dt><dd>${esc(f.hora)}</dd>
+        <dt>Horario reservado</dt><dd>${esc(f.hora)} – ${horaFin(f.hora, duracion)} (${duracion} min)</dd>
         <dt>Precio</dt><dd>${dinero(srv.precio)}</dd>
       </dl>
       <label class="form"><span class="muted">Notas para el especialista (opcional)</span>
@@ -317,7 +325,7 @@ function viewCitas() {
     </div>
     ${citas.length === 0 ? `<div class="empty">Aún no tienes citas. <button class="btn btn--small" data-action="ir" data-vista="catalogo">Agendar una</button></div>` : `
     <div class="table-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Hora</th><th>Tiempo restante</th><th>Negocio / servicio</th><th>Especialista</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Horario reservado</th><th>Tiempo restante</th><th>Negocio / servicio</th><th>Especialista</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody>${citas.map(c => {
           const srv = buscarServicioPorId(c.servicioId);
           const neg = buscarNegocioPorId(srv.negocioId);
@@ -325,12 +333,12 @@ function viewCitas() {
           const filaRepro = estado.reprogramando === c.agendaId ? `
             <tr><td colspan="8"><div class="toolbar">
               <label>Nueva fecha<input type="date" id="rFecha" min="${hoy()}" value="${esc(estado.reproFecha ?? sumarDias(1))}"></label>
-              <label>Nueva hora<select id="rHora">${horariosDisponibles(c.especialistaId, estado.reproFecha ?? sumarDias(1), c.servicioId).map(h => `<option>${h}</option>`).join("") || "<option value=''>Sin horarios</option>"}</select></label>
+              <label>Nueva hora<select id="rHora">${horariosDisponibles(c.especialistaId, estado.reproFecha ?? sumarDias(1), c.servicioId, ahora, c.duracionServicio ?? srv.duracionMinutos).map(h => `<option>${h}</option>`).join("") || "<option value=''>Sin horarios</option>"}</select></label>
               <button class="btn btn--primary btn--small" data-action="repro-ok" data-id="${c.agendaId}">Guardar cambio</button>
               <button class="btn btn--small" data-action="repro-no">Cancelar</button>
             </div></td></tr>` : "";
           return `<tr>
-            <td>${esc(c.fecha)}</td><td>${esc(c.startTime)}</td>
+            <td>${esc(c.fecha)}</td><td>${esc(c.startTime)} – ${horaFin(c.startTime, c.duracionServicio ?? srv.duracionMinutos)} (${c.duracionServicio ?? srv.duracionMinutos} min)</td>
             <td>${c.estado === EstadoCita.CONFIRMADA ? `<span class="timer" data-countdown="${c.inicio.getTime()}" role="timer" aria-live="off"></span>` : "—"}</td>
             <td><strong>${esc(neg.nombre)}</strong><br><span class="muted">${esc(srv.nombre)}</span></td>
             <td>${esc(buscarPersonaPorId(c.especialistaId).nombreCompleto)}</td>
