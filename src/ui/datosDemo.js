@@ -31,7 +31,7 @@ export function cargarDatosDemo() {
     const restaurante = crearNegocio("Restaurante La Mesa", "Restaurante", "Calle 33 #70-15, Medellín", "6043332211");
 
     const corte = crearServicio(barberia.businessId, "Corte de cabello", "Corte clásico con lavado y secado.", 45, 35000);
-    const barba = crearServicio(barberia.businessId, "Arreglo de barba", "Perfilado y toalla caliente.", 30, 20000);
+    const barba = crearServicio(barberia.businessId, "arreglo de barba", "Perfilado y toalla caliente.", 30, 20000);
     crearServicio(barberia.businessId, "Corte + barba", "Corte de cabello y perfilado de barba en una sola sesión.", 60, 50000);
     crearServicio(barberia.businessId, "Afeitado clásico", "Afeitado tradicional con navaja y toalla caliente.", 30, 25000);
     crearServicio(barberia.businessId, "Lavado y peinado", "Lavado capilar y peinado con productos profesionales.", 30, 18000);

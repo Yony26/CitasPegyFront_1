@@ -61,6 +61,11 @@ export default class Persona {
         if (correoElectronico) this._correoElectronico = correoElectronico;
     }
 
+    cambiarContrasena(actual, nueva) {
+        if (actual !== this._contrasena) throw new Error("La contraseña actual es incorrecta");
+        this._contrasena = nueva;
+    }
+
     mostrarDatos() {
         return `${this.constructor.name}: ${this.nombreCompleto} | Correo: ${this._correoElectronico} | Tel: ${this._telefono}`;
     }

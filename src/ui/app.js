@@ -4,7 +4,7 @@
 
 import Administracion from '../classes/administracion.js';
 import { EstadoCita } from '../enums/estadoCita.js';
-import { registrarCliente, iniciarSesion } from '../services/usuarioService.js';
+import { registrarCliente, iniciarSesion, actualizarPerfil, cambiarContrasena } from '../services/usuarioService.js';
 import {
   buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, actualizarServicio, desactivarServicio
 } from '../services/negocioService.js';
@@ -70,6 +70,7 @@ function renderNav() {
     if (estado.usuario && !esAdmin()) html += enlace("citas", "Mis citas");
     if (esAdmin()) html += enlace("panel", "Panel del negocio");
     if (estado.usuario) {
+      html += enlace("perfil", "Mi perfil");
         html += `<span class="nav__user">Hola, ${esc(estado.usuario.nombre)}</span><button class="nav__link" data-action="salir">Cerrar sesión</button>`;
     } else {
         html += `<button class="btn btn--primary btn--small" data-action="abrir-auth">Ingresar</button>`;
@@ -330,6 +331,37 @@ function viewCitas() {
     <p class="hint">Solo puedes cancelar o reprogramar hasta 2 horas antes de la cita.</p>`}`;
 }
 
+function viewPerfil() {
+    const usuario = estado.usuario;
+    return `
+    ${mensajeHtml()}
+    <h1>Mi perfil</h1>
+    <p class="muted">Actualiza tus datos de contacto y administra tu contraseña.</p>
+    <form id="formPerfil" class="panel form">
+      <h2>Datos personales</h2>
+      <div class="form__row">
+        <label>Nombre<input name="nombre" value="${esc(usuario.nombre)}" autocomplete="given-name" required></label>
+        <label>Apellido<input name="apellido" value="${esc(usuario.apellido)}" autocomplete="family-name" required></label>
+      </div>
+      <div class="form__row">
+        <label>Teléfono<input name="telefono" value="${esc(usuario.telefono)}" inputmode="tel" autocomplete="tel" required></label>
+        <label>Correo electrónico<input name="correoElectronico" type="email" value="${esc(usuario.correoElectronico)}" autocomplete="email" required></label>
+      </div>
+      <p class="hint">Tipo de documento: ${esc(usuario.docType)} (no editable).</p>
+      <button class="btn btn--primary" type="submit">Guardar datos</button>
+    </form>
+    <form id="formContrasena" class="panel form">
+      <h2>Cambiar contraseña</h2>
+      <label>Contraseña actual<input name="actual" type="password" autocomplete="current-password" required></label>
+      <div class="form__row">
+        <label>Nueva contraseña<input name="nueva" type="password" minlength="6" autocomplete="new-password" required></label>
+        <label>Confirmar nueva contraseña<input name="confirmar" type="password" minlength="6" autocomplete="new-password" required></label>
+      </div>
+      <p class="hint">La contraseña debe tener al menos 6 caracteres.</p>
+      <button class="btn btn--primary" type="submit">Cambiar contraseña</button>
+    </form>`;
+}
+
 // ===== Vista: panel del negocio (HU08, HU11, HU13, HU14) =====
 function viewPanel() {
     const p = estado.panel;
@@ -421,9 +453,9 @@ function viewPanel() {
 function render() {
     renderNav();
     $("#nav").classList.remove("is-open");
-    const vistas = { catalogo: viewCatalogo, servicios: viewServicios, agendar: viewAgendar, exito: viewExito, citas: viewCitas, panel: viewPanel };
+    const vistas = { catalogo: viewCatalogo, servicios: viewServicios, agendar: viewAgendar, exito: viewExito, citas: viewCitas, panel: viewPanel, perfil: viewPerfil };
     // Rutas protegidas
-    if ((estado.vista === "citas" && !estado.usuario) || (estado.vista === "panel" && !esAdmin())) estado.vista = "catalogo";
+    if ((["citas", "perfil"].includes(estado.vista) && !estado.usuario) || (estado.vista === "panel" && !esAdmin())) estado.vista = "catalogo";
     if (estado.vista === "agendar" && !estado.flujo) estado.vista = "catalogo";
     app.innerHTML = vistas[estado.vista]();
     if (estado.vista === "catalogo") pintarCatalogo();
@@ -554,6 +586,29 @@ document.addEventListener("change", (ev) => {
     mapa[t.id]?.();
 });
 document.addEventListener("submit", (ev) => {
+  if (ev.target.id === "formPerfil") {
+    ev.preventDefault();
+    const d = new FormData(ev.target);
+    try {
+      actualizarPerfil(estado.usuario.id, {
+        nombre: d.get("nombre"), apellido: d.get("apellido"), telefono: d.get("telefono"),
+        correoElectronico: d.get("correoElectronico")
+      });
+      avisar("ok", "Tus datos se actualizaron correctamente.");
+    } catch (e) { avisar("error", e.message); }
+    render();
+    return;
+  }
+  if (ev.target.id === "formContrasena") {
+    ev.preventDefault();
+    const d = new FormData(ev.target);
+    try {
+      cambiarContrasena(estado.usuario.id, String(d.get("actual")), String(d.get("nueva")), String(d.get("confirmar")));
+      avisar("ok", "Tu contraseña se cambió correctamente.");
+    } catch (e) { avisar("error", e.message); }
+    render();
+    return;
+  }
     if (ev.target.id !== "formServicio") return;
     ev.preventDefault();
     const d = new FormData(ev.target);

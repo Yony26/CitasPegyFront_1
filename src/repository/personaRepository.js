@@ -26,6 +26,10 @@ export function buscarPersonaPorCorreo(correo) {
     return personas.find(p => p.correoElectronico === correo) ?? null;
 }
 
+export function correoEnUso(correo, excluirId = null) {
+    return personas.some(p => p.correoElectronico.toLowerCase() === correo.toLowerCase() && p.id !== excluirId);
+}
+
 export function listarPersonasPorTipo(clase) {
     return personas.filter(p => p instanceof clase);
 }
