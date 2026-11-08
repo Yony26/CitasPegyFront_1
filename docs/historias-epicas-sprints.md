@@ -114,6 +114,14 @@ Como administrador, quiero descargar el reporte filtrado en CSV para abrirlo en 
 Como administrador, quiero que usuarios, servicios y citas se guarden de forma permanente para no perder la información al reiniciar la aplicación.  
 **Aceptación:** los datos se recuperan después de reiniciar; las operaciones persistentes validan permisos en el servidor.
 
+**HU-22 — Solicitar recuperación de contraseña** · **Interfaz lista; envío real pendiente de backend**  
+Como usuario que olvidó su contraseña, quiero solicitar un código al correo electrónico o teléfono de mi cuenta para verificar que soy su propietario.  
+**Aceptación:** la respuesta es genérica para no revelar si la cuenta existe; el código es de un solo uso, expira y se envía por un proveedor configurado en el backend.
+
+**HU-23 — Restablecer contraseña con código** · **Interfaz lista; validación real pendiente de backend**  
+Como usuario, quiero ingresar el código recibido y definir una nueva contraseña para recuperar el acceso a mi cuenta.  
+**Aceptación:** el servidor verifica código, destino y vigencia; la contraseña se almacena como hash y el código queda invalidado después de usarse.
+
 ## Plan de sprints propuesto
 
 ### Sprint 1 — Catálogo de barbería y administración de servicios
@@ -130,8 +138,8 @@ Como administrador, quiero que usuarios, servicios y citas se guarden de forma p
 
 ### Sprint 3 — Persistencia y disponibilidad
 **Objetivo:** preparar el prototipo para uso continuo.  
-**Historias:** HU-17 y HU-21.  
-**Entregables:** almacenamiento persistente, horarios semanales y días de excepción, validación de permisos fuera de la interfaz y pruebas automatizadas.  
+**Historias:** HU-17, HU-21, HU-22 y HU-23.  
+**Entregables:** almacenamiento persistente, horarios semanales y días de excepción, API de recuperación, integración de correo/SMS, validación de permisos fuera de la interfaz y pruebas automatizadas.  
 **Criterio de terminado:** los datos sobreviven reinicios y no se pueden modificar operaciones administrativas desde una sesión de cliente.
 
 ## Reglas y notas de alcance
@@ -139,4 +147,5 @@ Como administrador, quiero que usuarios, servicios y citas se guarden de forma p
 - Los importes se expresan en pesos colombianos (COP), sin decimales en la interfaz.
 - Para reportes, “ingreso” significa el precio acordado en una cita marcada **Atendida**; no es una integración contable ni representa pagos verificados.
 - El prototipo actual se ejecuta en frontend y mantiene repositorios en memoria. La verificación de rol en la interfaz sirve para demostración, no reemplaza autenticación/autorización en un backend de producción.
+- La pantalla de recuperación y el cliente de API están preparados; el envío efectivo de correo/SMS requiere implementar los endpoints, conectar SQL Server y configurar un proveedor. Ver `docs/conexion-sql-server.md`.
 - La capacidad de registrar especialistas existe en la capa de servicios; una pantalla administrativa completa para ello queda por desarrollar.

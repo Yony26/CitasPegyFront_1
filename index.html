@@ -32,6 +32,7 @@
       <label>Contraseña<input type="password" name="contrasena" required autocomplete="current-password"></label>
       <p class="form__error" id="errLogin" role="alert"></p>
       <button class="btn btn--primary btn--block" type="submit">Ingresar</button>
+      <button class="btn btn--block" type="button" data-action="abrir-recuperacion">¿Olvidaste tu contraseña?</button>
       <p class="hint">Demo cliente: <code>ana@correo.com</code> / <code>clave123</code><br>
       Demo administrador: <code>admin@citaspegy.com</code> / <code>admin123</code></p>
     </form>
@@ -56,6 +57,33 @@
     </form>
   </dialog>
 
+  <dialog id="dlgRecuperacion" class="dialog">
+    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
+    <h2>Recuperar contraseña</h2>
+    <p class="muted">Te enviaremos un código de un solo uso al correo o teléfono asociado a tu cuenta.</p>
+    <form id="formSolicitarCodigo" class="form">
+      <label>Recibir código por
+        <select name="canal" id="canalRecuperacion" required>
+          <option value="email">Correo electrónico</option>
+          <option value="sms">Mensaje de texto (SMS)</option>
+        </select>
+      </label>
+      <label id="labelDestinoRecuperacion">Correo electrónico
+        <input id="destinoRecuperacion" name="destino" type="email" autocomplete="email" required>
+      </label>
+      <p class="form__error" id="errSolicitarCodigo" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit">Enviar código</button>
+    </form>
+    <form id="formRestablecerContrasena" class="form" hidden>
+      <p id="mensajeCodigoEnviado" class="alert alert--ok" role="status"></p>
+      <label>Código recibido<input name="codigo" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <label>Nueva contraseña<input name="nuevaContrasena" type="password" minlength="6" autocomplete="new-password" required></label>
+      <label>Confirmar nueva contraseña<input name="confirmarContrasena" type="password" minlength="6" autocomplete="new-password" required></label>
+      <p class="form__error" id="errRestablecerContrasena" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit">Guardar nueva contraseña</button>
+    </form>
+  </dialog>
+
   <dialog id="dlgComprobante" class="dialog">
     <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
     <h2>Comprobante digital</h2>
@@ -63,6 +91,10 @@
     <form method="dialog"><button class="btn btn--primary btn--block">Cerrar</button></form>
   </dialog>
 
+  <script>
+    // URL base del backend de autenticación; déjala vacía si frontend y API comparten origen.
+    globalThis.CITASPEGY_API_URL = "";
+  </script>
   <script type="module" src="src/ui/app.js"></script>
 </body>
 </html>

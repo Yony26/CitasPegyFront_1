@@ -17,6 +17,15 @@ Usuarios de prueba: cliente `ana@correo.com` / `clave123` · administrador `admi
 
 **Pruebas por consola (Node 18 o superior):** `npm start` corre `src/main.js`, que prueba todas las clases y servicios.
 
+## Recuperación de contraseña y SQL Server
+
+En el inicio de sesión está la opción **¿Olvidaste tu contraseña?**. La interfaz permite solicitar el código por correo o SMS y luego ingresar una contraseña nueva. El envío real requiere conectar los endpoints del backend y configurar un proveedor de correo/SMS; las instrucciones y el contrato están en [docs/conexion-sql-server.md](docs/conexion-sql-server.md).
+
+- Esquema inicial SQL Server: [sql/schema-sqlserver.sql](sql/schema-sqlserver.sql)
+- Plantilla de conexión para el backend: [.env.example](.env.example)
+
+La aplicación de demostración continúa usando repositorios en memoria. No conectes SQL Server directamente desde el navegador ni guardes credenciales reales en el frontend.
+
 ## Estructura
 
 ```

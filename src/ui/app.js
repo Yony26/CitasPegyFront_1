@@ -5,6 +5,7 @@
 import Administracion from '../classes/administracion.js';
 import { EstadoCita } from '../enums/estadoCita.js';
 import { registrarCliente, iniciarSesion, actualizarPerfil, cambiarContrasena } from '../services/usuarioService.js';
+import { solicitarCodigoRecuperacion, restablecerContrasena } from '../services/recuperacionService.js';
 import {
   buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, actualizarServicio, desactivarServicio
 } from '../services/negocioService.js';
@@ -464,6 +465,21 @@ function render() {
 
 // ===== Autenticación (HU01 y HU02 de la plataforma) =====
 const dlgAuth = $("#dlgAuth");
+const dlgRecuperacion = $("#dlgRecuperacion");
+dlgRecuperacion.addEventListener("close", () => {
+  $("#formSolicitarCodigo").reset();
+  $("#formSolicitarCodigo").hidden = false;
+  $("#formRestablecerContrasena").reset();
+  $("#formRestablecerContrasena").hidden = true;
+  $("#labelDestinoRecuperacion").firstChild.textContent = "Correo electrónico";
+  $("#destinoRecuperacion").type = "email";
+  $("#destinoRecuperacion").autocomplete = "email";
+  $("#destinoRecuperacion").placeholder = "nombre@correo.com";
+  $("#destinoRecuperacion").inputMode = "email";
+  $("#errSolicitarCodigo").textContent = "";
+  $("#errRestablecerContrasena").textContent = "";
+  estado.recuperacion = null;
+});
 function abrirAuth() { $("#errLogin").textContent = ""; $("#errRegistro").textContent = ""; if (!dlgAuth.open) dlgAuth.showModal(); }
 function cambiarTab(tab) {
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("is-active", b.dataset.tab === tab));
@@ -505,6 +521,11 @@ document.addEventListener("click", (ev) => {
         "ir": () => ir(el.dataset.vista, el.dataset.id ? { negocioId: id } : {}),
         "menu": () => $("#nav").classList.toggle("is-open"),
         "abrir-auth": abrirAuth,
+        "abrir-recuperacion": () => {
+          dlgAuth.close();
+          $("#errSolicitarCodigo").textContent = "";
+          if (!dlgRecuperacion.open) dlgRecuperacion.showModal();
+        },
         "salir": () => { cancelarFlujo(); estado.usuario = null; avisar("ok", "Sesión cerrada."); ir("catalogo"); },
         "limpiar": () => { estado.filtro = { nombre: "", tipo: "" }; render(); },
         "chip": () => { estado.filtro.tipo = estado.filtro.tipo === el.dataset.tipo ? "" : el.dataset.tipo; render(); },
@@ -572,6 +593,16 @@ document.addEventListener("input", (ev) => {
 });
 document.addEventListener("change", (ev) => {
     const t = ev.target, p = estado.panel;
+  if (t.id === "canalRecuperacion") {
+    const porEmail = t.value === "email";
+    $("#labelDestinoRecuperacion").firstChild.textContent = porEmail ? "Correo electrónico" : "Número de celular";
+    const destino = $("#destinoRecuperacion");
+    destino.type = porEmail ? "email" : "tel";
+    destino.autocomplete = porEmail ? "email" : "tel";
+    destino.placeholder = porEmail ? "nombre@correo.com" : "3001234567";
+    destino.inputMode = porEmail ? "email" : "tel";
+    return;
+  }
     const mapa = {
         fTipo: () => { estado.filtro.tipo = t.value; render(); },
         fecha: () => { liberarBloqueo(); estado.flujo.fecha = t.value || sumarDias(1); render(); },
@@ -586,6 +617,53 @@ document.addEventListener("change", (ev) => {
     mapa[t.id]?.();
 });
 document.addEventListener("submit", (ev) => {
+  if (ev.target.id === "formSolicitarCodigo") {
+    ev.preventDefault();
+    const datos = new FormData(ev.target);
+    const canal = String(datos.get("canal"));
+    const destino = String(datos.get("destino")).trim();
+    const boton = ev.target.querySelector('button[type="submit"]');
+    boton.disabled = true;
+    $("#errSolicitarCodigo").textContent = "";
+    solicitarCodigoRecuperacion(canal, destino)
+      .then(() => {
+        estado.recuperacion = { canal, destino };
+        ev.target.hidden = true;
+        $("#mensajeCodigoEnviado").textContent = "Si existe una cuenta con esos datos, recibirás un código de recuperación. Revisa tu correo o tus mensajes.";
+        $("#formRestablecerContrasena").hidden = false;
+      })
+      .catch(error => { $("#errSolicitarCodigo").textContent = error.message; })
+      .finally(() => { boton.disabled = false; });
+    return;
+  }
+  if (ev.target.id === "formRestablecerContrasena") {
+    ev.preventDefault();
+    const datos = new FormData(ev.target);
+    const nueva = String(datos.get("nuevaContrasena"));
+    const confirmar = String(datos.get("confirmarContrasena"));
+    if (nueva !== confirmar) {
+      $("#errRestablecerContrasena").textContent = "La nueva contraseña y su confirmación no coinciden.";
+      return;
+    }
+    const boton = ev.target.querySelector('button[type="submit"]');
+    boton.disabled = true;
+    $("#errRestablecerContrasena").textContent = "";
+    restablecerContrasena(estado.recuperacion.canal, estado.recuperacion.destino, String(datos.get("codigo")).trim(), nueva)
+      .then(() => {
+        dlgRecuperacion.close();
+        ev.target.reset();
+        $("#formSolicitarCodigo").reset();
+        $("#formSolicitarCodigo").hidden = false;
+        ev.target.hidden = true;
+        estado.recuperacion = null;
+        avisar("ok", "Contraseña actualizada. Ya puedes iniciar sesión con la nueva contraseña.");
+        render();
+        abrirAuth();
+      })
+      .catch(error => { $("#errRestablecerContrasena").textContent = error.message; })
+      .finally(() => { boton.disabled = false; });
+    return;
+  }
   if (ev.target.id === "formPerfil") {
     ev.preventDefault();
     const d = new FormData(ev.target);
