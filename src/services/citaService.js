@@ -37,7 +37,7 @@ function bloqueosVigentes(especialistaId, fecha, ahora, ignorarId = null) {
 function estaLibre(especialistaId, fecha, startTime, duracion, ahora, ignorarBloqueoId = null) {
     const ini = aMinutos(startTime), fin = ini + duracion;
     const ocupadoPorCita = citasActivas(especialistaId, fecha).some(c => {
-        const d = buscarServicioPorId(c.servicioId).duracionMinutos;
+        const d = c.duracionServicio ?? buscarServicioPorId(c.servicioId).duracionMinutos;
         return seCruzan(ini, fin, aMinutos(c.startTime), aMinutos(c.startTime) + d);
     });
     const ocupadoPorBloqueo = bloqueosVigentes(especialistaId, fecha, ahora, ignorarBloqueoId).some(b => {
@@ -101,7 +101,8 @@ export function confirmarCita(bloqueoId, notas = "", ahora = new Date()) {
         throw new Error("El horario ya fue tomado por otro cliente");
     }
     const id = generarIdCita();
-    const cita = new OrdenDelDia(id, b.fecha, b.startTime, b.clienteId, b.especialistaId, b.servicioId, notas);
+    const servicio = buscarServicioPorId(b.servicioId);
+    const cita = new OrdenDelDia(id, b.fecha, b.startTime, b.clienteId, b.especialistaId, b.servicioId, notas, servicio.precio, servicio.nombre, servicio.duracionMinutos);
     cita.confirmar(`CP-${String(id).padStart(4, "0")}`);
     guardarCita(cita);
     eliminarBloqueo(bloqueoId);
@@ -132,7 +133,7 @@ export function reprogramarCita(agendaId, nuevaFecha, nuevaHora, ahora = new Dat
         throw new Error("El nuevo horario no está disponible");
     }
     const id = generarIdCita();
-    const nueva = new OrdenDelDia(id, nuevaFecha, nuevaHora, cita.clienteId, cita.especialistaId, cita.servicioId, cita.notas);
+    const nueva = new OrdenDelDia(id, nuevaFecha, nuevaHora, cita.clienteId, cita.especialistaId, cita.servicioId, cita.notas, cita.precioServicio, cita.nombreServicio, cita.duracionServicio);
     nueva.confirmar(cita.bookingCode);
     cita.cancelar(ahora);
     guardarCita(nueva);
@@ -154,18 +155,34 @@ export function marcarNoAsistidasAutomaticas(ahora = new Date(), horasPlazo = 24
 
 /** HU13: métricas del negocio en un rango de fechas ("YYYY-MM-DD"). */
 export function metricasNegocio(negocioId, desde, hasta) {
+    if (!desde || !hasta || desde > hasta) throw new Error("El rango de fechas no es válido");
     const citas = listarCitas().filter(c =>
         buscarServicioPorId(c.servicioId).negocioId === negocioId && c.fecha >= desde && c.fecha <= hasta);
     const cuenta = (e) => citas.filter(c => c.estado === e).length;
     const atendidas = cuenta(EstadoCita.COMPLETADA);
     const noAsistio = cuenta(EstadoCita.NO_ASISTIO);
     const finalizadas = atendidas + noAsistio;
+    const porServicio = new Map();
+    for (const cita of citas) {
+        const servicio = buscarServicioPorId(cita.servicioId);
+        const clave = cita.servicioId;
+        const item = porServicio.get(clave) ?? { servicioId: clave, nombre: cita.nombreServicio || servicio.nombre, citas: 0, atendidas: 0, ingresos: 0 };
+        item.citas++;
+        if (cita.estado === EstadoCita.COMPLETADA) {
+            item.atendidas++;
+            item.ingresos += cita.precioServicio ?? servicio.precio;
+        }
+        porServicio.set(clave, item);
+    }
     return {
         total: citas.length,
         confirmadas: cuenta(EstadoCita.CONFIRMADA),
         atendidas,
         canceladas: cuenta(EstadoCita.CANCELADA),
         noAsistio,
+        ingresos: citas.filter(c => c.estado === EstadoCita.COMPLETADA)
+            .reduce((total, c) => total + (c.precioServicio ?? buscarServicioPorId(c.servicioId).precio), 0),
+        porServicio: [...porServicio.values()].sort((a, b) => b.ingresos - a.ingresos),
         porcentajeInasistencia: finalizadas === 0 ? 0 : Math.round((noAsistio / finalizadas) * 1000) / 10
     };
 }

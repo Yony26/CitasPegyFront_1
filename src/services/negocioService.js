@@ -1,4 +1,4 @@
-// Servicio de Negocios - CitasPeggy
+// Servicio de Negocios - CitasPegy
 // Orquesta el catálogo: negocios, servicios y especialistas (EP1).
 
 import Negocio from '../classes/negocio.js';
@@ -27,6 +27,19 @@ export function buscarNegocios({ nombre = "", tipo = "" } = {}) {
 export function crearServicio(negocioId, nombre, descripcion, duracionMinutos, precio) {
     buscarNegocioPorId(negocioId); // lanza error si el negocio no existe
     return guardarServicio(new Servicio(generarIdServicio(), nombre, descripcion, duracionMinutos, precio, negocioId));
+}
+
+/** HU19: actualizar datos y precio de un servicio existente. */
+export function actualizarServicio(servicioId, { nombre, descripcion, duracionMinutos, precio }) {
+    const servicio = buscarServicioPorId(servicioId);
+    if (!nombre?.trim() || !descripcion?.trim()) throw new Error("El nombre y la descripción son obligatorios");
+    if (!Number.isFinite(duracionMinutos) || duracionMinutos <= 0) throw new Error("La duración debe ser mayor a cero");
+    if (!Number.isFinite(precio) || precio < 0) throw new Error("El precio no puede ser negativo");
+    servicio.nombre = nombre.trim();
+    servicio.descripcion = descripcion.trim();
+    servicio.duracionMinutos = duracionMinutos;
+    servicio.precio = precio;
+    return servicio;
 }
 
 /** HU02: solo los servicios activos de un negocio. */

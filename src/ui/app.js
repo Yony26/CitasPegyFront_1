@@ -6,7 +6,7 @@ import Administracion from '../classes/administracion.js';
 import { EstadoCita } from '../enums/estadoCita.js';
 import { registrarCliente, iniciarSesion } from '../services/usuarioService.js';
 import {
-    buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, desactivarServicio
+  buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, actualizarServicio, desactivarServicio
 } from '../services/negocioService.js';
 import {
     horariosDisponibles, todasLasFranjas, reservarTemporal, confirmarCita, historialCliente,
@@ -342,6 +342,7 @@ function viewPanel() {
     const agenda = p.especialistaId ? agendaDelDia(p.especialistaId, p.fecha) : [];
     const ahora = new Date();
     const servicios = listarServicios(p.negocioId);
+    const servicioEditando = servicios.find(s => s.serviceId === estado.editandoServicio);
     return `
     ${mensajeHtml()}
     <h1>Panel del negocio</h1>
@@ -359,9 +360,18 @@ function viewPanel() {
       <div class="tile tile--main"><div class="tile__label">Inasistencias</div><div class="tile__value">${m.porcentajeInasistencia}%</div></div>
       <div class="tile"><div class="tile__label">Citas totales</div><div class="tile__value">${m.total}</div></div>
       <div class="tile"><div class="tile__label">Atendidas</div><div class="tile__value">${m.atendidas}</div></div>
+      <div class="tile"><div class="tile__label">Ingresos por citas atendidas</div><div class="tile__value">${dinero(m.ingresos)}</div></div>
       <div class="tile"><div class="tile__label">No asistió</div><div class="tile__value">${m.noAsistio}</div></div>
       <div class="tile"><div class="tile__label">Canceladas</div><div class="tile__value">${m.canceladas}</div></div>
     </div>
+    <div class="toolbar"><button class="btn btn--primary btn--small" data-action="exportar-reporte">Descargar reporte CSV</button></div>
+    <h3>Reporte por servicio</h3>
+    ${m.porServicio.length === 0 ? `<p class="hint">No hay datos para reportar en el período seleccionado.</p>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Servicio</th><th>Citas</th><th>Atendidas</th><th>Ingresos</th></tr></thead>
+      <tbody>${m.porServicio.map(s => `<tr><td>${esc(s.nombre)}</td><td>${s.citas}</td><td>${s.atendidas}</td><td>${dinero(s.ingresos)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><th>Total</th><th>${m.total}</th><th>${m.atendidas}</th><th>${dinero(m.ingresos)}</th></tr></tfoot>
+    </table></div>`}
     ${m.total === 0 ? `<p class="hint">No hay citas en ese período.</p>` : ""}
 
     <h2>Agenda del día</h2>
@@ -385,18 +395,23 @@ function viewPanel() {
 
     <h2>Servicios del negocio</h2>
     <form id="formServicio" class="panel form">
+      <h3>${servicioEditando ? `Editar: ${esc(servicioEditando.nombre)}` : "Agregar un servicio"}</h3>
       <div class="form__row">
-        <label>Nombre<input name="nombre" required></label>
-        <label>Descripción<input name="descripcion" required></label>
+        <label>Nombre<input name="nombre" value="${esc(servicioEditando?.nombre ?? "")}" required></label>
+        <label>Descripción<input name="descripcion" value="${esc(servicioEditando?.descripcion ?? "")}" required></label>
       </div>
       <div class="form__row">
-        <label>Duración (min)<input name="duracion" type="number" min="15" step="15" value="30" required></label>
-        <label>Precio (COP)<input name="precio" type="number" min="0" step="1000" value="30000" required></label>
+        <label>Duración (min)<input name="duracion" type="number" min="1" step="1" value="${servicioEditando?.duracionMinutos ?? 30}" required></label>
+        <label>Precio (COP)<input name="precio" type="number" min="0" step="1000" value="${servicioEditando?.precio ?? 30000}" required></label>
       </div>
-      <button class="btn btn--primary" type="submit">Agregar servicio</button>
+      <div class="actions">
+        <button class="btn btn--primary" type="submit">${servicioEditando ? "Guardar cambios" : "Agregar servicio"}</button>
+        ${servicioEditando ? `<button class="btn" type="button" data-action="cancelar-edicion">Cancelar edición</button>` : ""}
+      </div>
     </form>
     <div class="list">${servicios.map(s => `
-      <div class="item"><div class="item__main"><h3>${esc(s.nombre)}</h3><span class="muted">${s.duracionMinutos} min</span> · <span class="item__price">${dinero(s.precio)}</span></div>
+      <div class="item"><div class="item__main"><h3>${esc(s.nombre)}</h3><p class="muted">${esc(s.descripcion)}</p><span class="muted">${s.duracionMinutos} min</span> · <span class="item__price">${dinero(s.precio)}</span></div>
+      <button class="btn btn--small" data-action="editar-servicio" data-id="${s.serviceId}">Editar</button>
       <button class="btn btn--small btn--danger" data-action="desactivar" data-id="${s.serviceId}">Desactivar</button></div>`).join("")}
     </div>
     <p class="hint">Desactivar un servicio no borra las citas que ya se agendaron con él.</p>`;
@@ -485,11 +500,40 @@ document.addEventListener("click", (ev) => {
         "atendida": () => cerrarCita(() => completarCita(id), "Cita marcada como atendida."),
         "noasistio": () => cerrarCita(() => marcarNoAsistio(id), "Cita marcada como «No asistió»."),
         "auto-noshow": () => { const n = marcarNoAsistidasAutomaticas(); avisar("ok", `${n} cita(s) marcadas como «No asistió».`); render(); },
-        "desactivar": () => { desactivarServicio(id); avisar("ok", "Servicio desactivado. El historial se conserva."); render(); }
+        "exportar-reporte": exportarReporteCsv,
+        "editar-servicio": () => { if (!esAdmin()) return; estado.editandoServicio = id; render(); },
+        "cancelar-edicion": () => { estado.editandoServicio = null; render(); },
+        "desactivar": () => {
+          if (!esAdmin()) return;
+          desactivarServicio(id); estado.editandoServicio = null;
+          avisar("ok", "Servicio desactivado. El historial se conserva."); render();
+        }
     }[el.dataset.action];
     accion?.();
 });
 function cerrarCita(fn, ok) { try { fn(); avisar("ok", ok); } catch (e) { avisar("error", e.message); } render(); }
+
+function exportarReporteCsv() {
+  if (!esAdmin()) { avisar("error", "Solo el administrador puede descargar reportes."); render(); return; }
+  try {
+    const p = estado.panel;
+    const m = metricasNegocio(p.negocioId, p.desde, p.hasta);
+    const filas = [
+      ["Reporte de citas e ingresos", ""], ["Desde", p.desde], ["Hasta", p.hasta],
+      ["Citas totales", m.total], ["Confirmadas", m.confirmadas], ["Atendidas", m.atendidas],
+      ["Canceladas", m.canceladas], ["No asistió", m.noAsistio], ["Ingresos por citas atendidas (COP)", m.ingresos],
+      [], ["Servicio", "Citas", "Atendidas", "Ingresos (COP)"],
+      ...m.porServicio.map(s => [s.nombre, s.citas, s.atendidas, s.ingresos])
+    ];
+    const csv = filas.map(fila => fila.map(valor => `"${String(valor ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `reporte-citas-${p.desde}-${p.hasta}.csv`;
+    enlace.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { avisar("error", e.message); render(); }
+}
 
 document.addEventListener("input", (ev) => {
     if (ev.target.id === "fNombre") { estado.filtro.nombre = ev.target.value; pintarCatalogo(); }
@@ -514,8 +558,19 @@ document.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const d = new FormData(ev.target);
     try {
-        crearServicio(estado.panel.negocioId, String(d.get("nombre")).trim(), String(d.get("descripcion")).trim(), Number(d.get("duracion")), Number(d.get("precio")));
+      if (!esAdmin()) throw new Error("Solo el administrador puede administrar servicios");
+      const datos = {
+        nombre: String(d.get("nombre")).trim(), descripcion: String(d.get("descripcion")).trim(),
+        duracionMinutos: Number(d.get("duracion")), precio: Number(d.get("precio"))
+      };
+      if (estado.editandoServicio) {
+        actualizarServicio(estado.editandoServicio, datos);
+        estado.editandoServicio = null;
+        avisar("ok", "Servicio actualizado. El precio guardado en citas anteriores no cambia.");
+      } else {
+        crearServicio(estado.panel.negocioId, datos.nombre, datos.descripcion, datos.duracionMinutos, datos.precio);
         avisar("ok", "Servicio agregado al catálogo.");
+      }
     } catch (e) { avisar("error", e.message); }
     render();
 });

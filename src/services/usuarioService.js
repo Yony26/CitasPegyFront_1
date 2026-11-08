@@ -1,4 +1,4 @@
-// Servicio de Usuarios - CitasPeggy
+// Servicio de Usuarios - CitasPegy
 // Registro e inicio de sesión (HU01 y HU02 de la plataforma).
 
 import Cliente from '../classes/cliente.js';

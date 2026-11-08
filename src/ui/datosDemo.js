@@ -32,6 +32,11 @@ export function cargarDatosDemo() {
 
     const corte = crearServicio(barberia.businessId, "Corte de cabello", "Corte clásico con lavado y secado.", 45, 35000);
     const barba = crearServicio(barberia.businessId, "Arreglo de barba", "Perfilado y toalla caliente.", 30, 20000);
+    crearServicio(barberia.businessId, "Corte + barba", "Corte de cabello y perfilado de barba en una sola sesión.", 60, 50000);
+    crearServicio(barberia.businessId, "Afeitado clásico", "Afeitado tradicional con navaja y toalla caliente.", 30, 25000);
+    crearServicio(barberia.businessId, "Lavado y peinado", "Lavado capilar y peinado con productos profesionales.", 30, 18000);
+    crearServicio(barberia.businessId, "Diseño de cejas", "Perfilado de cejas con acabado limpio.", 15, 12000);
+    crearServicio(barberia.businessId, "Tinte de cabello", "Aplicación de tinte; el valor puede variar según el largo.", 90, 80000);
     crearServicio(spa.businessId, "Masaje relajante", "Masaje de cuerpo completo de 60 minutos.", 60, 90000);
     crearServicio(spa.businessId, "Limpieza facial", "Limpieza profunda e hidratación.", 60, 75000);
     crearServicio(consultorio.businessId, "Valoración odontológica", "Revisión general y plan de tratamiento.", 30, 50000);
@@ -39,10 +44,10 @@ export function cargarDatosDemo() {
     crearServicio(restaurante.businessId, "Mesa para 2 personas", "Reserva de mesa por 60 minutos.", 60, 0);
     crearServicio(restaurante.businessId, "Mesa para 6 personas", "Reserva de mesa familiar por 90 minutos.", 90, 0);
 
-    const laura = registrarEspecialista(barberia.businessId, "CC", "Laura", "Mesa", "3022222222", "laura@correo.com", "e1", "Barbera");
-    registrarEspecialista(barberia.businessId, "CC", "Carlos", "Ríos", "3033333333", "carlos@correo.com", "e2", "Barbero");
-    registrarEspecialista(spa.businessId, "CC", "Marcela", "Gil", "3044444444", "marcela@correo.com", "e3", "Terapeuta");
-    registrarEspecialista(consultorio.businessId, "CC", "Dr. Andrés", "Vélez", "3055555555", "andres@correo.com", "e4", "Odontólogo");
+    const yonyLopez = registrarEspecialista(barberia.businessId, "CC", "Yony", "Lopez", "3022222222", "yony@correo.com", "e1", "Barbera");
+    registrarEspecialista(barberia.businessId, "CC", "Paola", "Ríos", "3033333333", "paola@correo.com", "e2", "Barbero");
+    registrarEspecialista(spa.businessId, "CC", "Gabriela", "Gil", "3044444444", "gabriela@correo.com", "e3", "Terapeuta");
+    registrarEspecialista(consultorio.businessId, "CC", "Dr. Stiven", "Vélez", "3055555555", "stiven@correo.com", "e4", "Odontólogo");
     registrarEspecialista(restaurante.businessId, "CC", "Sala", "Principal", "3066666666", "sala@correo.com", "e5", "Anfitrión");
 
     // Citas pasadas de Ana para mostrar los estados en "Mis citas" y en las métricas.
@@ -54,7 +59,7 @@ export function cargarDatosDemo() {
         const b = reservarTemporal(ana.id, esp.id, srv.serviceId, fecha, hora, base);
         return confirmarCita(b.id, "", base);
     };
-    const c1 = crearPasada(laura, corte, semanaPasada, "10:00");
+    const c1 = crearPasada(yonyLopez, corte, semanaPasada, "10:00");
     completarCita(c1.agendaId, new Date(antes(semanaPasada, "12:00")));
     const c2 = crearPasada(laura, barba, hace3, "15:00");
     marcarNoAsistio(c2.agendaId, new Date(antes(hace3, "18:00")));

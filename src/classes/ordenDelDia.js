@@ -17,8 +17,11 @@ export default class OrdenDelDia {
     #especialistaId;
     #servicioId;
     #notas;
+    #precioServicio;
+    #nombreServicio;
+    #duracionServicio;
 
-    constructor(agendaId, fecha, startTime, clienteId, especialistaId, servicioId, notas = "") {
+    constructor(agendaId, fecha, startTime, clienteId, especialistaId, servicioId, notas = "", precioServicio = null, nombreServicio = "", duracionServicio = null) {
         if (!fecha || !startTime || !clienteId || !especialistaId || !servicioId) {
             throw new Error("La cita necesita fecha, hora, cliente, especialista y servicio");
         }
@@ -29,6 +32,9 @@ export default class OrdenDelDia {
         this.#especialistaId = especialistaId;
         this.#servicioId = servicioId;
         this.#notas = notas;
+        this.#precioServicio = precioServicio;
+        this.#nombreServicio = nombreServicio;
+        this.#duracionServicio = duracionServicio;
         this.#estado = EstadoCita.PENDIENTE;
         this.#bookingCode = null;
     }
@@ -42,6 +48,9 @@ export default class OrdenDelDia {
     get especialistaId() { return this.#especialistaId; }
     get servicioId() { return this.#servicioId; }
     get notas() { return this.#notas; }
+    get precioServicio() { return this.#precioServicio; }
+    get nombreServicio() { return this.#nombreServicio; }
+    get duracionServicio() { return this.#duracionServicio; }
 
     /** Fecha y hora de inicio como objeto Date (hora local). */
     get inicio() { return new Date(`${this.#fecha}T${this.#startTime}:00`); }
@@ -103,6 +112,7 @@ export default class OrdenDelDia {
             `Negocio: ${nombreNegocio}`,
             `Servicio: ${nombreServicio}`,
             `Especialista: ${nombreEspecialista}`,
+            `Precio: ${this.#precioServicio === null ? "No disponible" : `$${this.#precioServicio.toLocaleString('es-CO')}`}`,
             `Fecha: ${this.#fecha}  Hora: ${this.#startTime}`,
             `Estado: ${this.#estado}`
         ].join("\n");

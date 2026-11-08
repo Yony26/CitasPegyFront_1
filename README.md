@@ -5,8 +5,7 @@ Sistema de turnos y citas para negocios (restaurantes, consultorios, spas, barbe
 ## Cómo ejecutarlo
 
 ```bash
-git clone https://github.com/durangor1911-ux/CitasPegyFront.git
-cd CitasPegyFront
+git clone https://github.com/Yony26/CitasPegyFront_1.git
 ```
 
 **Pantallas (HTML + CSS):** abre `index.html` con un servidor local; no funciona haciendo doble clic porque el navegador bloquea los módulos de JavaScript.
