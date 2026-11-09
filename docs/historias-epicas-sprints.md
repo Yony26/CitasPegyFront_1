@@ -47,13 +47,13 @@ Como cliente, quiero ver los servicios activos, su descripción, duración, prec
 Como cliente, quiero elegir un especialista (o cualquiera disponible), fecha y horario para encontrar una cita compatible.  
 **Aceptación:** no se ofrecen horarios pasados ni franjas ocupadas; la duración del servicio determina el espacio requerido.
 
-**HU-06 — Retener temporalmente un horario** · **Implementada**  
+**HU-06 — Retener temporalmente un horario** · **Implementada en el prototipo local**
 Como cliente, quiero que el horario seleccionado se reserve temporalmente mientras completo la confirmación.  
-**Aceptación:** la retención dura cinco minutos; al expirar, el horario se libera y se informa al usuario.
+**Aceptación:** la retención dura cinco minutos; en esta ejecución local los bloqueos y las citas solapadas se excluyen y se revalidan al confirmar. Al expirar, el horario se libera y se informa al usuario. La exclusión entre diferentes navegadores/servidores y la revalidación transaccional en base de datos requieren un backend; el prototipo en memoria no las garantiza.
 
-**HU-07 — Confirmar cita y obtener comprobante** · **Implementada**  
+**HU-07 — Confirmar cita y obtener comprobante** · **Implementada en el prototipo local**
 Como cliente, quiero confirmar mi reserva y recibir un código de reserva con el precio acordado.  
-**Aceptación:** se revalida la disponibilidad antes de confirmar; el comprobante incluye negocio, servicio, especialista, fecha, hora, estado, código y precio histórico.
+**Aceptación:** se revalida la disponibilidad antes de confirmar; la cita queda confirmada, aparece en historial y agenda, y se muestra el comprobante con negocio, servicio, especialista, fecha, hora, estado, código y precio histórico. El prototipo no envía notificaciones al negocio; para cumplir esa aceptación en producción se necesita un backend que persista la confirmación y entregue la notificación.
 
 **HU-08 — Consultar historial de citas** · **Implementada**  
 Como cliente, quiero consultar mis citas y filtrarlas por estado para dar seguimiento a mis reservas.  

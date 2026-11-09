@@ -41,6 +41,12 @@ export function buscarBloqueo(id) {
     return bloqueos.find(b => b.id === id) ?? null;
 }
 
+export function eliminarBloqueosExpirados(ahora = new Date()) {
+    for (let i = bloqueos.length - 1; i >= 0; i--) {
+        if (bloqueos[i].expiraEn <= ahora) bloqueos.splice(i, 1);
+    }
+}
+
 export function eliminarBloqueo(id) {
     const i = bloqueos.findIndex(b => b.id === id);
     if (i !== -1) bloqueos.splice(i, 1);

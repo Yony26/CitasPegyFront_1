@@ -6,6 +6,7 @@ import Administracion from '../classes/administracion.js';
 import { EstadoCita } from '../enums/estadoCita.js';
 import { registrarCliente, iniciarSesion, actualizarPerfil, cambiarContrasena } from '../services/usuarioService.js';
 import { solicitarCodigoRecuperacion, restablecerContrasena } from '../services/recuperacionService.js';
+import { consultarCitaPorCodigo } from '../services/consultaCitaService.js';
 import {
   buscarNegocios, listarServicios, detalleServicio, especialistasDelNegocio, crearServicio, actualizarServicio, desactivarServicio
 } from '../services/negocioService.js';
@@ -74,6 +75,7 @@ function ir(vista, extra = {}) {
 function renderNav() {
     const enlace = (v, t) => `<button class="nav__link ${estado.vista === v ? "is-active" : ""}" data-action="ir" data-vista="${v}">${t}</button>`;
     let html = enlace("catalogo", "Negocios");
+    html += enlace("consulta", "Consultar cita");
     if (estado.usuario && !esAdmin()) html += enlace("citas", "Mis citas");
     if (esAdmin()) html += enlace("panel", "Panel del negocio");
     if (estado.usuario) {
@@ -93,6 +95,7 @@ function viewCatalogo() {
     <section class="hero">
       <h1>Agenda tu cita sin filas ni llamadas</h1>
       <p class="muted">Elige negocio, servicio, especialista y hora en menos de 2 minutos.</p>
+      <button class="btn btn--primary btn--small" data-action="ir" data-vista="consulta">Consulta el estado de tu cita</button>
       <div class="filters">
         <input id="fNombre" type="search" placeholder="Buscar negocio por nombre…" value="${esc(estado.filtro.nombre)}" aria-label="Buscar negocio por nombre">
         <select id="fTipo" aria-label="Filtrar por categoría">
@@ -102,8 +105,37 @@ function viewCatalogo() {
         <button class="btn" data-action="limpiar">Limpiar</button>
       </div>
     </section>
+    ${tarjetaConsulta()}
     <div class="chips" id="chips"></div>
     <div id="grid"></div>`;
+}
+
+function tarjetaConsulta() {
+    return `
+    <section class="consulta-card" aria-labelledby="tituloConsulta">
+      <h2 id="tituloConsulta">Consultar Estado de Cita</h2>
+      <p>Ingresa tu código de reserva para verificar el estado actual.</p>
+      <form id="formConsultaCita">
+        <div class="consulta-card__controles">
+          <label class="sr-only" for="codigoConsulta">Código de reserva</label>
+          <input id="codigoConsulta" name="codigo" type="text" placeholder="Ej: CP-0001" maxlength="7"
+            autocomplete="off" autocapitalize="characters" aria-describedby="ayudaConsulta" required>
+          <button class="btn" type="submit">Buscar</button>
+        </div>
+        <span class="sr-only" id="ayudaConsulta">Escribe el código con el formato CP seguido de cuatro números.</span>
+        <p class="form__error" id="errorConsulta" role="alert"></p>
+      </form>
+      <div id="resultadoConsulta" aria-live="polite" aria-atomic="true"></div>
+    </section>`;
+}
+
+function viewConsulta() {
+    const backendConfigurado = Boolean(globalThis.CITASPEGY_API_URL);
+    return `
+    <section class="consulta">
+      ${tarjetaConsulta()}
+      ${backendConfigurado ? "" : `<div class="alert alert--warning" role="note">Modo demostración: no hay backend conectado. Solo puedes consultar citas de prueba creadas en esta sesión.</div>`}
+    </section>`;
 }
 function pintarCatalogo() {
     const tipos = [...new Set(listarNegocios().map(n => n.tipo))];
@@ -112,13 +144,16 @@ function pintarCatalogo() {
     $("#grid").innerHTML = lista.length === 0
         ? `<div class="empty">No encontramos negocios con esa búsqueda. Prueba con otro nombre o categoría.</div>`
         : `<div class="grid">${lista.map(n => `
+          ${["Spa Sereno", "Consultorio Dental Sonríe", "Restaurante La Mesa"].includes(n.nombre)
+            ? `<article class="card card--proximamente" aria-label="Próximamente"><span>Próximamente</span></article>`
+            : `
           <article class="card">
             <div class="card__img" aria-hidden="true">${ICONOS[n.tipo] ?? "🏪"}</div>
             <h3>${esc(n.nombre)}</h3>
             <div class="card__meta">${esc(n.tipo)} · ${esc(n.direccion)}</div>
             <div class="card__row"><span class="rating">★ 4.8</span>
               <button class="btn btn--primary btn--small" data-action="ver-servicios" data-id="${n.businessId}">Ver servicios</button></div>
-          </article>`).join("")}</div>`;
+          </article>`}`).join("")}</div>`;
 }
 
 // ===== Vista: servicios de un negocio (HU02 y HU03) =====
@@ -500,7 +535,7 @@ function viewPanel() {
 function render() {
     renderNav();
     $("#nav").classList.remove("is-open");
-    const vistas = { catalogo: viewCatalogo, servicios: viewServicios, agendar: viewAgendar, exito: viewExito, citas: viewCitas, panel: viewPanel, perfil: viewPerfil };
+    const vistas = { catalogo: viewCatalogo, consulta: viewConsulta, servicios: viewServicios, agendar: viewAgendar, exito: viewExito, citas: viewCitas, panel: viewPanel, perfil: viewPerfil };
     // Rutas protegidas
     if ((["citas", "perfil"].includes(estado.vista) && !estado.usuario) || (estado.vista === "panel" && !esAdmin())) estado.vista = "catalogo";
     if (estado.vista === "agendar" && !estado.flujo) estado.vista = "catalogo";
@@ -637,6 +672,17 @@ function exportarReporteCsv() {
 
 document.addEventListener("input", (ev) => {
     if (ev.target.id === "fNombre") { estado.filtro.nombre = ev.target.value; pintarCatalogo(); }
+    if (ev.target.id === "codigoConsulta") {
+      const codigo = ev.target.value.trim().toUpperCase();
+      const error = $("#errorConsulta");
+      if (!codigo || /^CP-\d{0,4}$/.test(codigo)) {
+        error.textContent = "";
+        ev.target.removeAttribute("aria-invalid");
+      } else {
+        error.textContent = "Usa el formato CP-0007 para consultar tu cita.";
+        ev.target.setAttribute("aria-invalid", "true");
+      }
+    }
 });
 document.addEventListener("change", (ev) => {
     const t = ev.target, p = estado.panel;
@@ -664,6 +710,53 @@ document.addEventListener("change", (ev) => {
     mapa[t.id]?.();
 });
 document.addEventListener("submit", (ev) => {
+  if (ev.target.id === "formConsultaCita") {
+    ev.preventDefault();
+    const campo = $("#codigoConsulta");
+    const codigo = campo.value.trim().toUpperCase();
+    const resultado = $("#resultadoConsulta");
+    const boton = ev.target.querySelector('button[type="submit"]');
+    const error = $("#errorConsulta");
+    if (!/^CP-\d{4}$/.test(codigo)) {
+      error.textContent = "Escribe un código válido con el formato CP-0007.";
+      campo.setAttribute("aria-invalid", "true");
+      campo.focus();
+      return;
+    }
+
+    error.textContent = "";
+    campo.removeAttribute("aria-invalid");
+    resultado.innerHTML = `<p class="consulta__cargando" role="status">Consultando el estado de tu cita…</p>`;
+    boton.disabled = true;
+    consultarCitaPorCodigo(codigo)
+      .then(cita => {
+        if (!cita) {
+          resultado.innerHTML = `<div class="alert alert--error" role="alert">No encontramos una cita con el código <strong>${esc(codigo)}</strong>. Verifica que lo hayas escrito correctamente.</div>`;
+          return;
+        }
+        const estadoClase = cita.estado === EstadoCita.CANCELADA ? "cancelada"
+          : cita.estado === EstadoCita.PENDIENTE ? "pendiente" : "activa";
+        resultado.innerHTML = `
+          <section class="consulta__resultado">
+            <p class="consulta__sobrelinea">RESULTADO DE LA CONSULTA</p>
+            <div class="consulta__resultado-cabecera">
+              <h2>Cita ${esc(cita.codigo)}</h2>
+              <span class="consulta__estado consulta__estado--${estadoClase}">${esc(cita.estado)}</span>
+            </div>
+            <dl>
+              <dt>Negocio</dt><dd>${esc(cita.negocio)}</dd>
+              <dt>Servicio</dt><dd>${esc(cita.servicio)}</dd>
+              <dt>Fecha</dt><dd>${esc(cita.fecha)}</dd>
+              <dt>Hora</dt><dd>${esc(cita.hora)}</dd>
+            </dl>
+          </section>`;
+      })
+      .catch(error => {
+        resultado.innerHTML = `<div class="alert alert--error" role="alert">${esc(error.message || "No fue posible consultar la cita. Inténtalo de nuevo.")}</div>`;
+      })
+      .finally(() => { boton.disabled = false; });
+    return;
+  }
   if (ev.target.id === "formSolicitarCodigo") {
     ev.preventDefault();
     const datos = new FormData(ev.target);

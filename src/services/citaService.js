@@ -10,7 +10,7 @@ import { buscarPersonaPorId } from '../repository/personaRepository.js';
 import {
     generarIdCita, generarIdBloqueo, guardarCita, listarCitas, buscarCitaPorId,
     listarCitasPorCliente, listarCitasPorEspecialista, guardarBloqueo, listarBloqueos,
-    buscarBloqueo, eliminarBloqueo
+    buscarBloqueo, eliminarBloqueo, eliminarBloqueosExpirados
 } from '../repository/citaRepository.js';
 
 const MINUTOS_BLOQUEO = 5;
@@ -42,6 +42,7 @@ function citasActivas(especialistaId, fecha) {
 }
 
 function bloqueosVigentes(especialistaId, fecha, ahora, ignorarId = null) {
+    eliminarBloqueosExpirados(ahora);
     return listarBloqueos().filter(b =>
         b.especialistaId === especialistaId && b.fecha === fecha && b.expiraEn > ahora && b.id !== ignorarId);
 }
@@ -110,7 +111,7 @@ export function confirmarCita(bloqueoId, notas = "", ahora = new Date()) {
     // Re-validación final (ignorando el propio bloqueo)
     if (!estaLibre(b.especialistaId, b.fecha, b.startTime, duracion, ahora, bloqueoId)) {
         eliminarBloqueo(bloqueoId);
-        throw new Error("El horario ya fue tomado por otro cliente");
+        throw new Error("El horario ya fue tomado por otra reserva; elige otra hora");
     }
     const id = generarIdCita();
     const cita = new OrdenDelDia(id, b.fecha, b.startTime, b.clienteId, b.especialistaId, b.servicioId, notas, servicio.precio, servicio.nombre, duracion);

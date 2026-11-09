@@ -7,6 +7,7 @@
 - La interfaz consume dos endpoints del backend mediante `src/services/recuperacionService.js`:
   - `POST /api/auth/password/forgot` con `{ "canal": "email" | "sms", "destino": "..." }`.
   - `POST /api/auth/password/reset` con `{ "canal": "email" | "sms", "destino": "...", "codigo": "...", "nuevaContrasena": "..." }`.
+- La consulta pública del estado de una cita usa `GET /api/appointments/by-code/:codigo` mediante `src/services/consultaCitaService.js`.
 - El archivo `.env.example` sirve como plantilla de configuración del servidor, y `sql/schema-sqlserver.sql` crea las tablas de SQL Server.
 
 ## Importante: se requiere backend
@@ -22,6 +23,34 @@ La aplicación actual es un frontend estático y sus cuentas demo se mantienen e
 5. Completa `DB_SERVER`, `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD` con los datos de tu instancia. Usa cifrado (`DB_ENCRYPT=true`) en producción.
 6. Configura SMTP para correo y un proveedor SMS para mensajes de texto. Las credenciales de esos proveedores solo deben estar en el backend.
 7. Inicia el backend en `CITASPEGY_API_URL` y configura la interfaz para que apunte a esa URL. En desarrollo con el mismo origen, la URL puede ser vacía y se usarán rutas relativas.
+
+## Contrato de consulta de cita
+
+### `GET /api/appointments/by-code/:codigo`
+
+Busca una cita por su código de reserva, por ejemplo `CP-0007`. Responde `200` con los datos públicos mínimos de la cita:
+
+```json
+{
+  "codigo": "CP-0007",
+  "estado": "Confirmada",
+  "fecha": "2026-11-12",
+  "hora": "10:00",
+  "negocio": "Barbería El Corte",
+  "servicio": "Corte de cabello"
+}
+```
+
+Si el código no existe, responde `404`. No incluir datos personales del cliente. Si `CITASPEGY_API_URL` no está configurada, la interfaz consulta los datos de demostración en memoria y avisa que no hay backend conectado.
+
+## Requisitos de backend para HU06 y HU07
+
+El prototipo ejecuta reservas en memoria dentro de una sola página; no puede asegurar exclusión entre navegadores ni persistir la cita. Para cumplir la garantía de producción:
+
+- Crear una retención en el servidor con vencimiento de cinco minutos. Al reservar y al confirmar, validar solapamientos de duración para el especialista y la fecha dentro de una transacción con aislamiento/ bloqueos apropiados. La confirmación debe comprobar que la retención pertenece al cliente y sigue vigente.
+- Guardar la cita confirmada y liberar la retención en la misma transacción; rechazar conflictos con una respuesta `409 Conflict` para que el cliente elija otro horario. Las citas no canceladas deben ocupar agenda.
+- Generar el código de reserva en el servidor con una restricción de unicidad en la base de datos. El servidor debe ser la autoridad para estado, historial y agenda.
+- Tras confirmar, generar una notificación para el negocio en el servidor. Usar una cola/outbox transaccional con reintentos evita perder el aviso si falla el proveedor de correo/SMS o la notificación push.
 
 ## Contrato de la API de recuperación
 

@@ -45,7 +45,7 @@ export function cargarDatosDemo() {
     crearServicio(restaurante.businessId, "Mesa para 6 personas", "Reserva de mesa familiar por 90 minutos.", 90, 0);
 
     const yonyLopez = registrarEspecialista(barberia.businessId, "CC", "Yony", "Lopez", "3022222222", "yony@correo.com", "e1", "Barbera");
-    registrarEspecialista(barberia.businessId, "CC", "Paola", "Ríos", "3033333333", "paola@correo.com", "e2", "Barbero");
+    const paola = registrarEspecialista(barberia.businessId, "CC", "Paola", "Ríos", "3033333333", "paola@correo.com", "e2", "Barbero");
     registrarEspecialista(spa.businessId, "CC", "Gabriela", "Gil", "3044444444", "gabriela@correo.com", "e3", "Terapeuta");
     registrarEspecialista(consultorio.businessId, "CC", "Dr. Stiven", "Vélez", "3055555555", "stiven@correo.com", "e4", "Odontólogo");
     registrarEspecialista(restaurante.businessId, "CC", "Sala", "Principal", "3066666666", "sala@correo.com", "e5", "Anfitrión");
@@ -59,8 +59,8 @@ export function cargarDatosDemo() {
         const b = reservarTemporal(ana.id, esp.id, srv.serviceId, fecha, hora, base);
         return confirmarCita(b.id, "", base);
     };
-    const c1 = crearPasada(yonyLopez, corte, semanaPasada, "10:00");
+    const c1 = crearPasada(yonyLopez, corte, semanaPasada, "10:15");
     completarCita(c1.agendaId, new Date(antes(semanaPasada, "12:00")));
-    const c2 = crearPasada(laura, barba, hace3, "15:00");
+    const c2 = crearPasada(paola, barba, hace3, "15:30");
     marcarNoAsistio(c2.agendaId, new Date(antes(hace3, "18:00")));
 }

@@ -24,6 +24,10 @@ En el inicio de sesión está la opción **¿Olvidaste tu contraseña?**. La int
 - Esquema inicial SQL Server: [sql/schema-sqlserver.sql](sql/schema-sqlserver.sql)
 - Plantilla de conexión para el backend: [.env.example](.env.example)
 
+## Consulta del estado de una cita
+
+La opción **Consultar cita** permite buscar una reserva por su código (por ejemplo, `CP-0007`) y ver su estado, fecha, hora, negocio y servicio. En modo demostración busca entre las citas en memoria; al configurar `CITASPEGY_API_URL`, consume `GET /api/appointments/by-code/:codigo`. El contrato está en [docs/conexion-sql-server.md](docs/conexion-sql-server.md).
+
 La aplicación de demostración continúa usando repositorios en memoria. No conectes SQL Server directamente desde el navegador ni guardes credenciales reales en el frontend.
 
 ## Estructura

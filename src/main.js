@@ -2,6 +2,7 @@
 // Corre con: node src/main.js
 // Se usan fechas fijas ("ahora") para que el resultado sea siempre el mismo.
 
+import assert from 'node:assert/strict';
 import Cliente from './classes/cliente.js';
 import Administracion from './classes/administracion.js';
 import Persona from './classes/persona.js';
@@ -16,10 +17,12 @@ import {
     marcarNoAsistio, marcarNoAsistidasAutomaticas, metricasNegocio, obtenerComprobante
 } from './services/citaService.js';
 import { EstadoCita } from './enums/estadoCita.js';
+import OrdenDelDia from './classes/ordenDelDia.js';
+import { generarIdCita, guardarCita } from './repository/citaRepository.js';
 
 const probarError = (titulo, fn) => {
-    try { fn(); console.log(`FALLO: ${titulo} no lanzó error`); }
-    catch (e) { console.log(`Error esperado (${titulo}):`, e.message); }
+    assert.throws(fn, undefined, titulo);
+    console.log(`Error esperado (${titulo})`);
 };
 
 console.log("===== PRUEBA: Persona es abstracta =====");
@@ -42,6 +45,7 @@ const barberia = crearNegocio("Barbería El Corte", "Barbería", "Calle 10 #20-3
 const spa = crearNegocio("Spa Sereno", "Spa", "Carrera 43A #5-10", "6047654321");
 const cortar = crearServicio(barberia.businessId, "Corte de cabello", "Corte clásico", 45, 35000);
 const barba = crearServicio(barberia.businessId, "Arreglo de barba", "Perfilado y toalla caliente", 30, 20000);
+const cejas = crearServicio(barberia.businessId, "Diseño de cejas", "Perfilado de cejas", 15, 12000);
 crearServicio(spa.businessId, "Masaje relajante", "Masaje de 60 minutos", 60, 90000);
 console.log("Buscar 'barb':", buscarNegocios({ nombre: "barb" }).map(n => n.nombre));
 console.log("Filtrar por Spa:", buscarNegocios({ tipo: "Spa" }).map(n => n.nombre));
@@ -57,18 +61,31 @@ console.log("\n===== PRUEBA: Horarios y reserva temporal (HU04 a HU07) =====");
 const ahora = new Date("2026-11-10T09:00:00");
 const fecha = "2026-11-12";
 console.log("Horarios libres de Laura:", horariosDisponibles(laura.id, fecha, cortar.serviceId, ahora).slice(0, 6), "...");
-const bloqueo = reservarTemporal(ana.id, laura.id, cortar.serviceId, fecha, "10:30", ahora);
+const bloqueo = reservarTemporal(ana.id, laura.id, cortar.serviceId, fecha, "10:15", ahora);
 console.log("Bloqueo creado hasta:", bloqueo.expiraEn.toTimeString().slice(0, 5));
-console.log("¿10:30 sigue libre para otros?:", horariosDisponibles(laura.id, fecha, cortar.serviceId, ahora).includes("10:30"));
-probarError("reservar un horario bloqueado", () => reservarTemporal(ana.id, laura.id, cortar.serviceId, fecha, "10:30", ahora));
+assert.equal(bloqueo.expiraEn.getTime(), ahora.getTime() + 5 * 60 * 1000, "el bloqueo debe durar cinco minutos");
+assert.equal(horariosDisponibles(laura.id, fecha, cortar.serviceId, ahora).includes("10:15"), false, "el horario bloqueado no debe aparecer disponible");
+probarError("reservar un horario bloqueado", () => reservarTemporal(ana.id, laura.id, cortar.serviceId, fecha, "10:15", ahora));
+probarError("reservar un horario solapado", () => reservarTemporal(ana.id, laura.id, cejas.serviceId, fecha, "10:30", ahora));
 const cita1 = confirmarCita(bloqueo.id, "Sin loción, por favor", new Date("2026-11-10T09:02:00"));
+assert.equal(cita1.estado, EstadoCita.CONFIRMADA, "la cita debe quedar confirmada");
+assert.match(cita1.bookingCode, /^CP-\d{4}$/u, "la cita debe recibir un código de reserva");
+assert.equal(historialCliente(ana.id).some(cita => cita.agendaId === cita1.agendaId), true, "la cita confirmada debe aparecer en el historial");
+assert.equal(agendaDelDia(laura.id, fecha).some(cita => cita.agendaId === cita1.agendaId), true, "la cita confirmada debe aparecer en la agenda");
+probarError("reservar un horario solapado con una cita confirmada", () => reservarTemporal(ana.id, laura.id, cejas.serviceId, fecha, "10:30", ahora));
 console.log(cita1.mostrarDatos());
+
+const bloqueoEnCarrera = reservarTemporal(ana.id, carlos.id, cortar.serviceId, fecha, "09:30", ahora);
+const citaEnCarrera = new OrdenDelDia(generarIdCita(), fecha, "09:30", ana.id, carlos.id, cortar.serviceId, "", cortar.precio, cortar.nombre, cortar.duracionMinutos);
+citaEnCarrera.confirmar("CP-9998");
+guardarCita(citaEnCarrera);
+probarError("revalidar un horario tomado antes de confirmar", () => confirmarCita(bloqueoEnCarrera.id, "", new Date("2026-11-10T09:01:00")));
 
 const bloqueoTarde = reservarTemporal(ana.id, carlos.id, cortar.serviceId, fecha, "08:00", ahora);
 probarError("confirmar pasados 5 minutos", () => confirmarCita(bloqueoTarde.id, "", new Date("2026-11-10T09:06:00")));
 console.log("08:00 de Carlos libre otra vez:", horariosDisponibles(carlos.id, fecha, cortar.serviceId, new Date("2026-11-10T09:06:00")).includes("08:00"));
 probarError("horario ya pasado", () => reservarTemporal(ana.id, laura.id, cortar.serviceId, fecha, "08:00", new Date("2026-11-12T12:00:00")));
-console.log("Cualquier especialista a las 10:30:", especialistasDelNegocio(barberia.businessId).find(e => e.id === cualquierEspecialistaDisponible([laura.id, carlos.id], fecha, "10:30", cortar.serviceId, ahora))?.nombreCompleto);
+console.log("Cualquier especialista a las 10:15:", especialistasDelNegocio(barberia.businessId).find(e => e.id === cualquierEspecialistaDisponible([laura.id, carlos.id], fecha, "10:15", cortar.serviceId, ahora))?.nombreCompleto);
 
 console.log("\n===== PRUEBA: Comprobante (HU16) =====");
 console.log(obtenerComprobante(cita1.agendaId));
