@@ -13,6 +13,8 @@ git clone https://github.com/Yony26/CitasPegyFront_1.git
 - O con Node: `npx serve .` y abre la dirección que muestra.
 - O con Python: `python -m http.server 8000` y abre http://localhost:8000
 
+**Versión pública:** https://yony26.github.io/CitasPegyFront_1/ (se publica automáticamente en GitHub Pages al actualizar la rama `main`).
+
 Usuarios de prueba: cliente `ana@correo.com` / `clave123` · administrador `admin@citaspeggy.com` / `admin123`.
 
 **Pruebas por consola (Node 18 o superior):** `npm start` corre `src/main.js`, que prueba todas las clases y servicios.
