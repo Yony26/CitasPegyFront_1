@@ -13,6 +13,15 @@ git clone https://github.com/Yony26/CitasPegyFront_1.git
 - O con Node: `npx serve .` y abre la dirección que muestra.
 - O con Python: `python -m http.server 8000` y abre http://localhost:8000
 
+### Compartir en la misma red Wi-Fi
+
+1. En la carpeta del proyecto, ejecuta `npm run local`.
+2. Deja abierta la terminal. El servidor mostrará una o más direcciones como `http://192.168.1.25:5501`.
+3. Conecta el celular/tableta/otro computador a la misma red Wi-Fi y abre esa dirección en el navegador.
+4. Si Windows Firewall pregunta, permite el acceso solo en redes privadas. Si el dispositivo no carga, revisa que ambos estén en la misma Wi-Fi y que la red no tenga aislamiento entre dispositivos.
+
+El servidor local solo sirve archivos estáticos y no requiere instalar paquetes. Para compartir la página por Internet con personas fuera de tu red, hay que desplegarla en un hosting público; esta opción local no publica el sitio en Internet. Los datos de demo se mantienen en memoria y cada dispositivo tendrá su propia sesión/datos, no un almacenamiento compartido.
+
 Usuarios de prueba: cliente `ana@correo.com` / `clave123` · administrador `admin@citaspeggy.com` / `admin123`.
 
 **Pruebas por consola (Node 18 o superior):** `npm start` corre `src/main.js`, que prueba todas las clases y servicios.
