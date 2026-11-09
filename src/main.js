@@ -111,7 +111,7 @@ completarCita(cita1.agendaId, new Date("2026-11-12T12:00:00"));
 console.log("Cita 1:", cita1.estado);
 const b3 = reservarTemporal(ana.id, carlos.id, cortar.serviceId, fecha, "11:00", ahora);
 const cita3 = confirmarCita(b3.id, "", ahora);
-const b4 = reservarTemporal(ana.id, carlos.id, cortar.serviceId, fecha, "13:00", ahora);
+const b4 = reservarTemporal(ana.id, carlos.id, cortar.serviceId, fecha, "13:15", ahora);
 const cita4 = confirmarCita(b4.id, "", ahora);
 marcarNoAsistio(cita3.agendaId, new Date("2026-11-12T12:00:00"));
 console.log("Cita 3:", cita3.estado);
