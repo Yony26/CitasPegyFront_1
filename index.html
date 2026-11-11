@@ -1,100 +1,171 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CitasPegy — Agenda tu cita sin filas ni llamadas</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#181818">
+  <meta name="description" content="Busca tu barbería favorita y agenda una cita con CitasPegy.">
+  <title>CitasPegy | Agenda en El Corte</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar__inner">
-      <a href="#" class="logo" data-action="ir" data-vista="catalogo">CITASPEGY</a>
-      <button class="menu-toggle" aria-label="Abrir menú" data-action="menu">☰</button>
-      <nav class="nav" id="nav" aria-label="Principal"></nav>
+  <header class="site-header">
+    <div class="container header-content">
+      <a class="brand" href="#" aria-label="CitasPegy, inicio">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>CitasPegy</span>
+      </a>
+      <nav class="main-nav" aria-label="Navegación principal">
+        <a href="#categorias">Categorías</a>
+        <a href="#negocios">Negocios</a>
+        <a href="#servicios">Servicios</a>
+        <!-- Extensión futura: agregar un enlace al panel de administración (HU08/HU13). -->
+        <a class="nav-cta" href="#categorias">Reservar cita</a>
+      </nav>
     </div>
   </header>
 
-  <main id="app" class="container" aria-live="polite"></main>
+  <main>
+    <section class="hero">
+      <div class="container hero-content">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> TU PRÓXIMA CITA, MÁS CERCA</p>
+        <h1>Un buen corte<br>cambia el día.</h1>
+        <p class="hero-copy">Encuentra un servicio, elige a tu especialista y reserva tu momento.</p>
+        <a class="button button-primary" href="#categorias">Explorar categorías <span aria-hidden="true">↓</span></a>
+        <div class="hero-note"><span aria-hidden="true">✦</span> Fácil, rápido y sin llamadas</div>
+      </div>
+      <div class="hero-decoration" aria-hidden="true"><span>EC</span></div>
+    </section>
 
-  <footer class="footer">
-    <div class="container">© CitasPegy · Proyecto Integrador CESDE · Soporte · Términos</div>
+    <section class="section container" id="categorias" aria-labelledby="categories-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow eyebrow-dark">DESCUBRE TU LUGAR</p>
+          <h2 id="categories-title">Explora por categoría</h2>
+        </div>
+        <p class="section-description">Comenzamos con barberías. Más experiencias llegarán pronto.</p>
+      </div>
+
+      <div class="category-grid" id="categoryList" aria-label="Categorías de negocios">
+        <button class="category-card is-active" type="button" data-category="Barbería" aria-pressed="true">
+          <span class="category-icon" aria-hidden="true">💈</span>
+          <span class="category-name">Barberías</span>
+          <span class="category-description">Estilo a tu manera</span>
+        </button>
+        <div class="category-card is-disabled" aria-disabled="true">
+          <span class="category-icon" aria-hidden="true">🍽️</span>
+          <span class="category-name">Restaurantes</span>
+          <span class="category-description">Próximamente</span>
+          <span class="coming-soon">Próximamente</span>
+        </div>
+        <div class="category-card is-disabled" aria-disabled="true">
+          <span class="category-icon" aria-hidden="true">🦷</span>
+          <span class="category-name">Consultorios</span>
+          <span class="category-description">Próximamente</span>
+          <span class="coming-soon">Próximamente</span>
+        </div>
+        <div class="category-card is-disabled" aria-disabled="true">
+          <span class="category-icon" aria-hidden="true">🧖</span>
+          <span class="category-name">Spas</span>
+          <span class="category-description">Próximamente</span>
+          <span class="coming-soon">Próximamente</span>
+        </div>
+        <div class="category-card is-disabled" aria-disabled="true">
+          <span class="category-icon" aria-hidden="true">🏋️</span>
+          <span class="category-name">Gimnasios</span>
+          <span class="category-description">Próximamente</span>
+          <span class="coming-soon">Próximamente</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section business-section" id="negocios" aria-labelledby="businesses-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow eyebrow-dark">BARBERÍAS</p>
+            <h2 id="businesses-title">Un lugar para renovar tu estilo</h2>
+          </div>
+          <p class="section-description">Conoce el negocio y elige el servicio ideal para ti.</p>
+        </div>
+
+        <form class="filters" id="businessFilters" role="search">
+          <label class="search-field">
+            <span class="sr-only">Buscar negocio</span>
+            <span class="field-icon" aria-hidden="true">⌕</span>
+            <input id="businessSearch" type="search" placeholder="Busca un negocio..." autocomplete="off">
+          </label>
+          <label class="category-field">
+            <span class="sr-only">Filtrar por categoría</span>
+            <select id="categoryFilter">
+              <option value="Barbería">Barberías</option>
+            </select>
+          </label>
+        </form>
+
+        <div id="businessList" class="business-list" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section services-section" id="servicios" aria-labelledby="services-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow eyebrow-dark" id="selectedBusinessCategory">BARBERÍA EL CORTE</p>
+            <h2 id="services-title">Elige tu servicio</h2>
+          </div>
+          <p id="serviceCount" class="section-description"></p>
+        </div>
+        <div id="serviceList" class="service-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section booking-section" id="agendar" aria-labelledby="booking-title" hidden>
+      <div class="container booking-container">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow eyebrow-dark">TU MOMENTO</p>
+            <h2 id="booking-title">Agenda tu cita</h2>
+          </div>
+          <button class="text-button" id="closeBooking" type="button">Cerrar <span aria-hidden="true">×</span></button>
+        </div>
+        <div id="selectedService" class="selected-service"></div>
+        <form id="bookingForm" class="booking-form">
+          <label>
+            <span>Especialista</span>
+            <select id="specialistSelect" name="specialistId" required></select>
+          </label>
+          <label>
+            <span>Fecha</span>
+            <input id="appointmentDate" name="date" type="date" required>
+          </label>
+          <label>
+            <span>Hora disponible</span>
+            <select id="timeSelect" name="time" required>
+              <option value="">Selecciona primero una fecha</option>
+            </select>
+          </label>
+          <label class="notes-field">
+            <span>Nota para tu especialista <span class="optional">(opcional)</span></span>
+            <textarea id="appointmentNotes" name="notes" rows="3" maxlength="200" placeholder="Cuéntanos algún detalle que debamos saber"></textarea>
+          </label>
+          <div class="booking-status" id="bookingStatus" aria-live="polite" role="status"></div>
+          <p class="hold-timer" id="holdTimer" hidden></p>
+          <button class="button button-primary booking-submit" id="confirmBooking" type="submit">Confirmar reserva</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <a class="brand brand-footer" href="#"><span class="brand-mark" aria-hidden="true">C</span><span>CitasPegy</span></a>
+      <p>Un espacio para cada momento. © <span id="currentYear"></span> CitasPegy</p>
+    </div>
   </footer>
 
-  <dialog id="dlgAuth" class="dialog">
-    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
-    <div class="tabs" role="tablist">
-      <button class="tab is-active" data-tab="login" role="tab">Iniciar sesión</button>
-      <button class="tab" data-tab="registro" role="tab">Registrarme</button>
-    </div>
-    <form id="formLogin" class="form">
-      <label>Correo electrónico<input type="email" name="correo" required autocomplete="username"></label>
-      <label>Contraseña<input type="password" name="contrasena" required autocomplete="current-password"></label>
-      <p class="form__error" id="errLogin" role="alert"></p>
-      <button class="btn btn--primary btn--block" type="submit">Ingresar</button>
-      <button class="btn btn--block" type="button" data-action="abrir-recuperacion">¿Olvidaste tu contraseña?</button>
-      <p class="hint">Demo cliente: <code>ana@correo.com</code> / <code>clave123</code><br>
-      Demo administrador: <code>admin@citaspegy.com</code> / <code>admin123</code></p>
-    </form>
-    <form id="formRegistro" class="form" hidden>
-      <div class="form__row">
-        <label>Nombre<input name="nombre" required></label>
-        <label>Apellido<input name="apellido" required></label>
-      </div>
-      <div class="form__row">
-        <label>Tipo de documento
-          <select name="docType"><option>CC</option><option>TI</option><option>CE</option></select>
-        </label>
-        <label>Teléfono<input name="telefono" inputmode="tel" required></label>
-      </div>
-      <label>Correo electrónico<input type="email" name="correo" required></label>
-      <div class="form__row">
-        <label>Contraseña<input type="password" name="contrasena" minlength="6" required autocomplete="new-password"></label>
-        <label>Confirmar contraseña<input type="password" name="confirmar" minlength="6" required autocomplete="new-password"></label>
-      </div>
-      <p class="form__error" id="errRegistro" role="alert"></p>
-      <button class="btn btn--primary btn--block" type="submit">Crear cuenta</button>
-    </form>
-  </dialog>
-
-  <dialog id="dlgRecuperacion" class="dialog">
-    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
-    <h2>Recuperar contraseña</h2>
-    <p class="muted">Te enviaremos un código de un solo uso al correo o teléfono asociado a tu cuenta.</p>
-    <form id="formSolicitarCodigo" class="form">
-      <label>Recibir código por
-        <select name="canal" id="canalRecuperacion" required>
-          <option value="email">Correo electrónico</option>
-          <option value="sms">Mensaje de texto (SMS)</option>
-        </select>
-      </label>
-      <label id="labelDestinoRecuperacion">Correo electrónico
-        <input id="destinoRecuperacion" name="destino" type="email" autocomplete="email" required>
-      </label>
-      <p class="form__error" id="errSolicitarCodigo" role="alert"></p>
-      <button class="btn btn--primary btn--block" type="submit">Enviar código</button>
-    </form>
-    <form id="formRestablecerContrasena" class="form" hidden>
-      <p id="mensajeCodigoEnviado" class="alert alert--ok" role="status"></p>
-      <label>Código recibido<input name="codigo" inputmode="numeric" autocomplete="one-time-code" required></label>
-      <label>Nueva contraseña<input name="nuevaContrasena" type="password" minlength="6" autocomplete="new-password" required></label>
-      <label>Confirmar nueva contraseña<input name="confirmarContrasena" type="password" minlength="6" autocomplete="new-password" required></label>
-      <p class="form__error" id="errRestablecerContrasena" role="alert"></p>
-      <button class="btn btn--primary btn--block" type="submit">Guardar nueva contraseña</button>
-    </form>
-  </dialog>
-
-  <dialog id="dlgComprobante" class="dialog">
-    <form method="dialog" class="dialog__close"><button aria-label="Cerrar">✕</button></form>
-    <h2>Comprobante digital</h2>
-    <pre id="comprobanteTexto" class="comprobante"></pre>
-    <form method="dialog"><button class="btn btn--primary btn--block">Cerrar</button></form>
-  </dialog>
-
-  <script>
-    // URL base del backend de autenticación; déjala vacía si frontend y API comparten origen.
-    globalThis.CITASPEGY_API_URL = "";
-  </script>
-  <script type="module" src="src/ui/app.js"></script>
+  <!-- Para conectar Java, escribe el origen, por ejemplo http://localhost:8080. -->
+  <script>globalThis.CITASPEGY_API_URL = "";</script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
