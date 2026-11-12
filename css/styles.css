@@ -93,6 +93,7 @@ button.category-card:hover { transform: translateY(-3px); border-color: #b7d96c;
 .service-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .service-card { display: flex; min-height: 218px; flex-direction: column; padding: 20px; border: 1px solid #e1e2da; border-radius: var(--radius); background: var(--white); transition: transform .18s ease, box-shadow .18s ease; }
 .service-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgb(26 27 23 / 7%); }
+.service-image { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: center; border-radius: 12px; background: #f0f1eb; }
 .service-symbol { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; background: #edf2e2; font-size: 18px; }
 .service-card h3 { margin: 16px 0 5px; font-family: "Manrope", sans-serif; font-size: 16px; letter-spacing: -.035em; }
 .service-description { display: -webkit-box; overflow: hidden; margin: 0; color: var(--muted); font-size: 11px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -114,6 +115,7 @@ button.category-card:hover { transform: translateY(-3px); border-color: #b7d96c;
 .booking-form input, .booking-form select, .booking-form textarea { font-size: 13px; font-weight: 400; }
 .booking-form textarea { min-height: 88px; resize: vertical; }
 .booking-form .notes-field, .booking-status, .hold-timer, .booking-submit { grid-column: 1 / -1; }
+.booking-form .customer-name-field { grid-column: 1 / -1; }
 .optional { color: #96978e; font-weight: 400; }
 .booking-status { min-height: 1px; margin: 0; font-size: 13px; }
 .booking-status:empty { display: none; }
@@ -122,6 +124,19 @@ button.category-card:hover { transform: translateY(-3px); border-color: #b7d96c;
 .booking-status.is-info { color: #65665f; }
 .hold-timer { margin: -6px 0 0; color: #6b712e; font-size: 12px; font-weight: 700; }
 .booking-submit { justify-self: start; min-width: 200px; }
+
+.receipt-dialog { width: min(460px, calc(100% - 32px)); max-height: min(90vh, 720px); overflow: auto; padding: 0; border: 1px solid var(--line); border-radius: 20px; color: var(--ink); background: var(--white); box-shadow: 0 24px 80px rgb(0 0 0 / 24%); }
+.receipt-dialog::backdrop { background: rgb(17 18 15 / 68%); backdrop-filter: blur(3px); }
+.receipt-content { padding: clamp(24px, 6vw, 36px); }
+.receipt-check { display: grid; width: 44px; height: 44px; margin-bottom: 20px; place-items: center; border-radius: 50%; color: #26330e; background: var(--accent); font-size: 23px; font-weight: 800; }
+.receipt-content .eyebrow { margin-bottom: 7px; }
+.receipt-content h2 { margin: 0; font-family: "Manrope", sans-serif; font-size: clamp(23px, 5vw, 30px); letter-spacing: -.05em; }
+.receipt-code-label { margin: 20px 0 4px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.receipt-code { margin: 0; color: #566d20; font-family: "Manrope", sans-serif; font-size: 23px; font-weight: 800; letter-spacing: .04em; }
+.receipt-details { display: grid; grid-template-columns: minmax(90px, .7fr) 1.3fr; gap: 12px 16px; margin: 24px 0; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; }
+.receipt-details dt { color: var(--muted); }
+.receipt-details dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.receipt-close { width: 100%; }
 
 .site-footer { color: #d7d7d0; background: var(--ink); }
 .footer-content { display: flex; min-height: 82px; align-items: center; justify-content: space-between; gap: 20px; }

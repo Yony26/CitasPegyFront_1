@@ -6,6 +6,7 @@ export default class Cita {
     fecha,
     hora,
     duracionMinutos = 0,
+    nombreCliente = "",
     notas = "",
     holdId = null,
     expiraEn = null,
@@ -16,6 +17,7 @@ export default class Cita {
     this.fecha = String(fecha);
     this.hora = String(hora);
     this.duracionMinutos = Number(duracionMinutos);
+    this.nombreCliente = String(nombreCliente);
     this.notas = String(notas);
     this.holdId = holdId === null ? null : String(holdId);
     this.expiraEn = expiraEn ? new Date(expiraEn) : null;

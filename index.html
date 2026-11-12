@@ -130,6 +130,10 @@
         </div>
         <div id="selectedService" class="selected-service"></div>
         <form id="bookingForm" class="booking-form">
+          <label class="customer-name-field">
+            <span>Nombre de quien agenda</span>
+            <input id="customerName" name="customerName" type="text" maxlength="100" autocomplete="name" required>
+          </label>
           <label>
             <span>Especialista</span>
             <select id="specialistSelect" name="specialistId" required></select>
@@ -154,6 +158,24 @@
         </form>
       </div>
     </section>
+
+    <dialog class="receipt-dialog" id="receiptDialog" aria-labelledby="receiptTitle">
+      <div class="receipt-content">
+        <div class="receipt-check" aria-hidden="true">✓</div>
+        <p class="eyebrow eyebrow-dark">RESERVA CONFIRMADA</p>
+        <h2 id="receiptTitle">Comprobante de tu cita</h2>
+        <p class="receipt-code-label">Código de reserva</p>
+        <p class="receipt-code" id="receiptCode"></p>
+        <dl class="receipt-details">
+          <dt>Nombre</dt><dd id="receiptCustomer"></dd>
+          <dt>Servicio</dt><dd id="receiptService"></dd>
+          <dt>Especialista</dt><dd id="receiptSpecialist"></dd>
+          <dt>Fecha</dt><dd id="receiptDate"></dd>
+          <dt>Hora</dt><dd id="receiptTime"></dd>
+        </dl>
+        <button class="button button-primary receipt-close" id="closeReceipt" type="button">Listo</button>
+      </div>
+    </dialog>
   </main>
 
   <footer class="site-footer">

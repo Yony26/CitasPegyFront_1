@@ -10,6 +10,7 @@ import {
   listarNegocios,
   listarServicios
 } from "./Datos.js";
+import Cliente from "./models/Cliente.js";
 
 const state = {
   businesses: [],
@@ -38,10 +39,18 @@ const dom = {
   date: document.querySelector("#appointmentDate"),
   time: document.querySelector("#timeSelect"),
   notes: document.querySelector("#appointmentNotes"),
+  customerName: document.querySelector("#customerName"),
   status: document.querySelector("#bookingStatus"),
   timer: document.querySelector("#holdTimer"),
   confirm: document.querySelector("#confirmBooking"),
-  close: document.querySelector("#closeBooking")
+  close: document.querySelector("#closeBooking"),
+  receipt: document.querySelector("#receiptDialog"),
+  receiptCode: document.querySelector("#receiptCode"),
+  receiptCustomer: document.querySelector("#receiptCustomer"),
+  receiptService: document.querySelector("#receiptService"),
+  receiptSpecialist: document.querySelector("#receiptSpecialist"),
+  receiptDate: document.querySelector("#receiptDate"),
+  receiptTime: document.querySelector("#receiptTime")
 };
 
 function escapeHtml(value) {
@@ -62,9 +71,22 @@ function formatPrice(price) {
   }).format(price);
 }
 
+function formatDuration(minutes) {
+  return `${String(minutes).padStart(2, "0")}:00 min`;
+}
+
 function localDate(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formatAppointmentDate(date) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("es-CO", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
 }
 
 function showStatus(message, type = "info") {
@@ -116,12 +138,14 @@ function renderServices() {
   dom.services.innerHTML = state.services.length
     ? state.services.map(service => `
       <article class="service-card">
-        <span class="service-symbol" aria-hidden="true">${escapeHtml(service.icono)}</span>
+        ${service.imagen
+          ? `<img class="service-image" src="${escapeHtml(service.imagen)}" alt="${escapeHtml(service.nombre)}" loading="lazy">`
+          : `<span class="service-symbol" aria-hidden="true">${escapeHtml(service.icono)}</span>`}
         <h3>${escapeHtml(service.nombre)}</h3>
         <p class="service-description">${escapeHtml(service.descripcion)}</p>
         <div class="service-bottom">
           <span class="service-price">${formatPrice(service.precio)}
-            <span class="service-duration">${service.duracionMinutos} minutos</span>
+            <span class="service-duration">${formatDuration(service.duracionMinutos)}</span>
           </span>
           <button class="button button-primary service-book" type="button" data-service-id="${escapeHtml(service.id)}">Agendar</button>
         </div>
@@ -235,7 +259,7 @@ async function openBooking(serviceId) {
   await releaseCurrentHold();
   dom.selectedService.innerHTML = `
     <h3>${escapeHtml(service.nombre)}</h3>
-    <p>${escapeHtml(service.descripcion)} · ${service.duracionMinutos} minutos · ${formatPrice(service.precio)}</p>`;
+    <p>${escapeHtml(service.descripcion)} · ${formatDuration(service.duracionMinutos)} · ${formatPrice(service.precio)}</p>`;
   renderSpecialists();
 
   const tomorrow = new Date();
@@ -244,6 +268,7 @@ async function openBooking(serviceId) {
   dom.date.value = localDate(tomorrow);
   dom.time.value = "";
   dom.notes.value = "";
+  dom.customerName.value = "";
   dom.confirm.disabled = false;
   dom.confirm.textContent = "Confirmar reserva";
   clearStatus();
@@ -329,24 +354,42 @@ async function confirmBooking(event) {
 
   dom.confirm.disabled = true;
   dom.close.disabled = true;
+  dom.customerName.disabled = true;
   dom.specialist.disabled = true;
   dom.date.disabled = true;
   dom.time.disabled = true;
   dom.notes.disabled = true;
   showStatus("Confirmando la cita...", "info");
+  let confirmed = false;
   try {
-    const code = await confirmarRetencion(state.hold, dom.notes.value.trim());
+    const cliente = new Cliente({ nombre: dom.customerName.value.trim() });
+    const specialist = state.specialists.find(item => item.id === Number(dom.specialist.value));
+    const booking = {
+      cliente,
+      servicio: state.service,
+      especialista: specialist,
+      fecha: dom.date.value,
+      hora: dom.time.value
+    };
+    const code = await confirmarRetencion(
+      state.hold,
+      dom.notes.value.trim(),
+      cliente.nombre
+    );
     state.hold = null;
     clearInterval(state.timerId);
     state.timerId = null;
     dom.timer.hidden = true;
     dom.confirm.textContent = "Cita confirmada";
     showStatus(`¡Reserva confirmada! Tu código de reserva es ${code}.`, "success");
+    showReceipt(booking, code);
+    confirmed = true;
   } catch (error) {
     showStatus(error.message, "error");
   } finally {
-    dom.confirm.disabled = false;
+    dom.confirm.disabled = confirmed;
     dom.close.disabled = false;
+    dom.customerName.disabled = false;
     dom.specialist.disabled = state.specialists.length === 0;
     dom.date.disabled = false;
     dom.time.disabled = false;
@@ -354,11 +397,25 @@ async function confirmBooking(event) {
   }
 }
 
+function showReceipt(booking, code) {
+  dom.receiptCode.textContent = code;
+  dom.receiptCustomer.textContent = booking.cliente.nombre;
+  dom.receiptService.textContent = booking.servicio.nombre;
+  dom.receiptSpecialist.textContent = booking.especialista?.nombre ?? "No asignado";
+  dom.receiptDate.textContent = formatAppointmentDate(booking.fecha);
+  dom.receiptTime.textContent = booking.hora;
+  dom.receipt.showModal();
+  document.querySelector("#closeReceipt").focus();
+}
+
 async function closeBooking() {
+  if (dom.receipt.open) dom.receipt.close();
   state.holdRequest += 1;
   await releaseCurrentHold();
   state.service = null;
   dom.bookingForm.reset();
+  dom.confirm.disabled = false;
+  dom.confirm.textContent = "Confirmar reserva";
   dom.bookingSection.hidden = true;
   clearStatus();
 }
@@ -397,6 +454,13 @@ function bindEvents() {
   dom.time.addEventListener("change", createHold);
   dom.bookingForm.addEventListener("submit", confirmBooking);
   dom.close.addEventListener("click", closeBooking);
+  document.querySelector("#closeReceipt").addEventListener("click", () => dom.receipt.close());
+  dom.receipt.addEventListener("click", event => {
+    if (event.target === dom.receipt) dom.receipt.close();
+  });
+  dom.receipt.addEventListener("close", () => {
+    if (!dom.bookingSection.hidden) dom.close.focus();
+  });
 }
 
 async function initialize() {

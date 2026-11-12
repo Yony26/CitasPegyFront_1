@@ -16,12 +16,12 @@ const negociosDemo = [
     telefono: "6041234567",
     calificacion: "4.9",
     servicios: [
-      new Servicio({ id: 1, nombre: "Corte de cabello", descripcion: "Corte clásico con lavado y acabado.", duracionMinutos: 45, precio: 35000, icono: "✂" }),
+      new Servicio({ id: 1, nombre: "Corte de cabello", descripcion: "Corte clásico con lavado y acabado.", duracionMinutos: 45, precio: 35000, icono: "✂", imagen: "imagenes/servicios/corte.jpg" }),
       new Servicio({ id: 2, nombre: "Arreglo de barba", descripcion: "Perfilado preciso y toalla caliente.", duracionMinutos: 30, precio: 20000, icono: "◒" }),
       new Servicio({ id: 3, nombre: "Corte + barba", descripcion: "Un estilo completo en una sola visita.", duracionMinutos: 60, precio: 50000, icono: "✦" }),
       new Servicio({ id: 4, nombre: "Afeitado clásico", descripcion: "Afeitado tradicional con acabado suave.", duracionMinutos: 30, precio: 25000, icono: "⌁" }),
       new Servicio({ id: 5, nombre: "Lavado y peinado", descripcion: "Lavado capilar y peinado profesional.", duracionMinutos: 30, precio: 18000, icono: "〰" }),
-      new Servicio({ id: 6, nombre: "Diseño de cejas", descripcion: "Perfilado de cejas con un acabado limpio.", duracionMinutos: 15, precio: 12000, icono: "⌒" })
+      new Servicio({ id: 6, nombre: "Diseño de cejas", descripcion: "Perfilado de cejas con un acabado limpio.", duracionMinutos: 12, precio: 12000, icono: "⌒" })
     ],
     especialistas: [
       new Especialista({ id: 1, nombre: "Yony López", cargo: "Barbero" }),
@@ -47,6 +47,7 @@ function mapearServicio(dto) {
     duracionMinutos: dto.duracionMinutos ?? dto.durationMinutes ?? dto.duration,
     precio: dto.precio ?? dto.price,
     icono: dto.icono ?? dto.icon ?? "✂",
+    imagen: dto.imagen ?? dto.image ?? "",
     activo: dto.activo ?? dto.active ?? true
   });
 }
@@ -164,7 +165,8 @@ export async function listarHorariosDisponibles({ servicioId, especialistaId, fe
     const params = new URLSearchParams({
       serviceId: String(servicioId),
       specialistId: String(especialistaId),
-      date: fecha
+      date: fecha,
+      durationMinutes: String(duracionMinutos)
     });
     const respuesta = await solicitar(`/api/appointments/availability?${params}`);
     const horas = respuesta.availableTimes ?? respuesta.horariosDisponibles;
@@ -175,7 +177,7 @@ export async function listarHorariosDisponibles({ servicioId, especialistaId, fe
   const horas = [];
   const ahora = new Date();
   const hoy = aFechaLocal(ahora);
-  for (let minutos = 8 * 60; minutos + duracionMinutos <= 17 * 60; minutos += 30) {
+  for (let minutos = 8 * 60; minutos + duracionMinutos <= 17 * 60; minutos += duracionMinutos) {
     const hora = `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
     if (fecha === hoy && new Date(`${fecha}T${hora}:00`) <= ahora) continue;
 
@@ -232,7 +234,7 @@ export async function crearRetencion({ servicioId, especialistaId, fecha, hora, 
 }
 
 /** Confirma una retención y devuelve el código producido por el backend. */
-export async function confirmarRetencion(cita, notas = "") {
+export async function confirmarRetencion(cita, notas = "", nombreCliente = "") {
   if (!cita?.estaVigente()) {
     throw new Error("La retención venció. Elige nuevamente un horario.");
   }
@@ -242,13 +244,14 @@ export async function confirmarRetencion(cita, notas = "") {
       throw new Error("La retención ya no existe. Selecciona otro horario.");
     }
     retencionesDemo.delete(cita.holdId);
-    reservasDemo.push({ ...cita, notas, expiraEn: null });
+    reservasDemo.push({ ...cita, nombreCliente, notas, expiraEn: null });
     return `DEMO-${String(++consecutivoDemo).padStart(4, "0")}`;
   }
 
+  cita.nombreCliente = nombreCliente;
   const respuesta = await solicitar(
     `/api/appointments/holds/${encodeURIComponent(cita.holdId)}/confirm`,
-    { method: "POST", body: JSON.stringify({ notes: notas }) }
+    { method: "POST", body: JSON.stringify({ notes: notas, clientName: nombreCliente }) }
   );
   if (typeof respuesta.bookingCode !== "string" || !respuesta.bookingCode.trim()) {
     throw new Error("El backend confirmó la cita sin devolver su código.");
