@@ -62,6 +62,7 @@ button.category-card { cursor: pointer; transition: transform .18s ease, border-
 button.category-card:hover { transform: translateY(-3px); border-color: #b7d96c; box-shadow: 0 12px 30px rgb(26 27 23 / 7%); }
 .category-card.is-active { border-color: #c9e993; background: #f2f7e9; }
 .category-icon { margin-bottom: 9px; font-size: 28px; }
+.category-logo { width: 58px; height: 58px; border-radius: 8px; background: #000; object-fit: contain; }
 .category-name { font-family: "Manrope", sans-serif; font-size: 14px; font-weight: 800; letter-spacing: -.03em; }
 .category-description { color: var(--muted); font-size: 10px; }
 .category-card.is-disabled { color: #777873; background: #f2f2ef; }
@@ -79,7 +80,7 @@ button.category-card:hover { transform: translateY(-3px); border-color: #b7d96c;
 .filters input:focus, .filters select:focus, .booking-form input:focus, .booking-form select:focus, .booking-form textarea:focus { border-color: #9ac53e; box-shadow: 0 0 0 3px rgb(201 243 106 / 30%); }
 .business-list { display: grid; gap: 12px; }
 .business-card { display: flex; align-items: center; gap: 18px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); }
-.business-icon { display: grid; width: 58px; height: 58px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: #edf2e2; font-size: 27px; }
+.business-icon { display: block; width: 58px; height: 58px; flex: 0 0 auto; border-radius: 14px; background: #edf2e2; object-fit: cover; }
 .business-info { min-width: 0; flex: 1; }
 .business-info h3 { margin: 0 0 3px; font-family: "Manrope", sans-serif; font-size: 17px; letter-spacing: -.03em; }
 .business-info p { margin: 0; color: var(--muted); font-size: 12px; }

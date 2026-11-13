@@ -114,7 +114,7 @@ function renderBusinesses() {
 
   dom.businesses.innerHTML = matches.map(business => `
     <article class="business-card">
-      <div class="business-icon" aria-hidden="true">💈</div>
+      <img class="business-icon" src="imagenes/el-corte-logo.png" alt="" loading="lazy">
       <div class="business-info">
         <span class="business-tag">${escapeHtml(business.categoria)}</span>
         <h3>${escapeHtml(business.nombre)}</h3>
