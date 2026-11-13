@@ -1,6 +1,6 @@
 /** Información de un servicio ofrecido por un negocio. */
 export default class Servicio {
-  constructor({ id, nombre, descripcion, duracionMinutos, precio, icono = "✂", imagen = "", activo = true }) {
+  constructor({ id, nombre, descripcion, duracionMinutos, precio, icono = "✂", activo = true }) {
     if (!nombre || !descripcion) {
       throw new Error("El servicio debe tener nombre y descripción.");
     }
@@ -17,7 +17,6 @@ export default class Servicio {
     this.duracionMinutos = Number(duracionMinutos);
     this.precio = Number(precio);
     this.icono = icono;
-    this.imagen = String(imagen);
     this.activo = Boolean(activo);
   }
 }

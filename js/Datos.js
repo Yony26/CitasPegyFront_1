@@ -16,7 +16,7 @@ const negociosDemo = [
     telefono: "6041234567",
     calificacion: "4.9",
     servicios: [
-      new Servicio({ id: 1, nombre: "Corte de cabello", descripcion: "Corte clásico con lavado y acabado.", duracionMinutos: 45, precio: 35000, icono: "✂", imagen: "imagenes/servicios/corte.jpg" }),
+      new Servicio({ id: 1, nombre: "Corte de cabello", descripcion: "Corte clásico con lavado y acabado.", duracionMinutos: 45, precio: 35000, icono: "✂" }),
       new Servicio({ id: 2, nombre: "Arreglo de barba", descripcion: "Perfilado preciso y toalla caliente.", duracionMinutos: 30, precio: 20000, icono: "◒" }),
       new Servicio({ id: 3, nombre: "Corte + barba", descripcion: "Un estilo completo en una sola visita.", duracionMinutos: 60, precio: 50000, icono: "✦" }),
       new Servicio({ id: 4, nombre: "Afeitado clásico", descripcion: "Afeitado tradicional con acabado suave.", duracionMinutos: 30, precio: 25000, icono: "⌁" }),
@@ -47,7 +47,6 @@ function mapearServicio(dto) {
     duracionMinutos: dto.duracionMinutos ?? dto.durationMinutes ?? dto.duration,
     precio: dto.precio ?? dto.price,
     icono: dto.icono ?? dto.icon ?? "✂",
-    imagen: dto.imagen ?? dto.image ?? "",
     activo: dto.activo ?? dto.active ?? true
   });
 }

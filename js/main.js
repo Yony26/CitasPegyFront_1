@@ -136,10 +136,12 @@ function renderServices() {
   dom.businessCategory.textContent = state.business.nombre.toLocaleUpperCase("es");
   dom.serviceCount.textContent = `${state.services.length} servicios disponibles`;
   dom.services.innerHTML = state.services.length
-    ? state.services.map(service => `
+    ? state.services.map(service => {
+      const image = globalThis.CITASPEGY_SERVICE_IMAGES?.[service.nombre] ?? "";
+      return `
       <article class="service-card">
-        ${service.imagen
-          ? `<img class="service-image" src="${escapeHtml(service.imagen)}" alt="${escapeHtml(service.nombre)}" loading="lazy">`
+        ${image
+          ? `<img class="service-image" src="${escapeHtml(image)}" alt="${escapeHtml(service.nombre)}" loading="lazy">`
           : `<span class="service-symbol" aria-hidden="true">${escapeHtml(service.icono)}</span>`}
         <h3>${escapeHtml(service.nombre)}</h3>
         <p class="service-description">${escapeHtml(service.descripcion)}</p>
@@ -149,8 +151,8 @@ function renderServices() {
           </span>
           <button class="button button-primary service-book" type="button" data-service-id="${escapeHtml(service.id)}">Agendar</button>
         </div>
-      </article>
-    `).join("")
+      </article>`;
+    }).join("")
     : '<p class="empty-state">Este negocio todavía no tiene servicios activos.</p>';
 }
 
