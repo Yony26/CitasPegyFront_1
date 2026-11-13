@@ -19,7 +19,7 @@
         <a href="#categorias">Categorías</a>
         <a href="#negocios">Negocios</a>
         <a href="#servicios">Servicios</a>
-        <!-- Extensión futura: agregar un enlace al panel de administración (HU08/HU13). -->
+        <button class="nav-profile" id="profileButton" type="button">Registrarse</button>
         <a class="nav-cta" href="#categorias">Reservar cita</a>
       </nav>
     </div>
@@ -119,6 +119,40 @@
       </div>
     </section>
 
+    <section class="section admin-section" id="administracion" aria-labelledby="admin-title" hidden>
+      <div class="container">
+        <div class="admin-topbar">
+          <div>
+            <p class="eyebrow eyebrow-dark">ESPACIO DE TRABAJO</p>
+            <h1 id="admin-title">Panel de administración</h1>
+            <p id="adminWelcome" class="section-description"></p>
+          </div>
+          <button class="button button-primary" id="adminLogout" type="button">Cerrar sesión</button>
+        </div>
+        <p class="demo-notice">Panel de demostración: los reportes se calculan con las citas guardadas en este navegador. En producción, los datos y permisos deben validarse en el servidor.</p>
+        <div class="report-filters" aria-label="Filtros del reporte diario">
+          <label><span>Fecha de las citas</span><input id="reportDate" type="date"></label>
+          <label><span>Categoría</span><select id="reportCategory"><option value="">Todas</option></select></label>
+          <label><span>Estado de cita</span><select id="reportStatus"><option value="">Todos</option></select></label>
+          <button class="button button-primary" id="exportReport" type="button">Exportar CSV</button>
+        </div>
+        <div id="reportCards" class="report-cards" aria-live="polite"></div>
+        <div class="report-table-wrap">
+          <h2>Resumen por categoría y estado</h2>
+          <div id="reportBreakdown" class="table-wrap" aria-live="polite"></div>
+        </div>
+        <div class="admin-appointments">
+          <h2>Citas del día</h2>
+          <div id="adminAppointments" class="table-wrap" aria-live="polite"></div>
+          <p id="adminStatus" class="booking-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="admin-catalog-section">
+          <h2>Negocios, servicios y especialistas</h2>
+        <div id="adminCatalog" class="admin-catalog" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="section booking-section" id="agendar" aria-labelledby="booking-title" hidden>
       <div class="container booking-container">
         <div class="section-heading">
@@ -132,7 +166,7 @@
         <form id="bookingForm" class="booking-form">
           <label class="customer-name-field">
             <span>Nombre de quien agenda</span>
-            <input id="customerName" name="customerName" type="text" maxlength="100" autocomplete="name" required>
+            <input id="customerName" name="customerName" type="text" maxlength="100" autocomplete="name" readonly required>
           </label>
           <label>
             <span>Especialista</span>
@@ -178,6 +212,58 @@
     </dialog>
   </main>
 
+  <dialog class="receipt-dialog account-dialog" id="accountDialog" aria-labelledby="accountTitle">
+    <div class="receipt-content">
+      <p class="eyebrow eyebrow-dark">CREA TU CUENTA</p>
+      <h2 id="accountTitle">Registro en CitasPegy</h2>
+      <p class="account-intro">Elige el tipo de cuenta. Para solicitar una cuenta administrativa necesitas un código de invitación válido.</p>
+      <form id="registrationForm" class="booking-form registration-form">
+        <label class="notes-field"><span>Tipo de cuenta</span>
+          <select id="registrationRole" name="role" required>
+            <option value="Cliente">Cliente</option>
+            <option value="Administrador">Administrador</option>
+          </select>
+        </label>
+        <label class="admin-invite-field notes-field" id="adminInviteField" hidden><span>Código de invitación de administrador</span>
+          <input id="adminInviteCode" name="adminInviteCode" type="password" autocomplete="off">
+        </label>
+        <label class="customer-name-field"><span>Nombre completo</span><input id="registrationName" name="name" type="text" maxlength="100" autocomplete="name" required></label>
+        <label><span>Número de identificación</span><input id="registrationId" name="identification" type="text" maxlength="30" autocomplete="off" required></label>
+        <label><span>Teléfono</span><input id="registrationPhone" name="phone" type="tel" value="3117302758" maxlength="20" autocomplete="tel" required></label>
+        <label><span>Correo electrónico</span><input id="registrationEmail" name="email" type="email" maxlength="150" autocomplete="email" required></label>
+        <label class="notes-field"><span>Contraseña <span class="optional">(mínimo 8 caracteres)</span></span><input id="registrationPassword" name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+        <p class="booking-status" id="registrationStatus" aria-live="polite" role="status"></p>
+        <button class="button button-primary booking-submit" type="submit">Crear cuenta</button>
+      </form>
+      <button class="text-button profile-close" id="closeAccount" type="button">Cancelar</button>
+    </div>
+  </dialog>
+
+  <dialog class="receipt-dialog profile-dialog" id="profileDialog" aria-labelledby="profileTitle">
+    <div class="receipt-content">
+      <p class="eyebrow eyebrow-dark">TU CUENTA</p>
+      <h2 id="profileTitle">Mi perfil</h2>
+      <dl class="profile-details">
+        <dt>Nombre</dt><dd id="profileName"></dd>
+        <dt>Identificación</dt><dd id="profileId"></dd>
+        <dt>Teléfono</dt><dd id="profilePhone"></dd>
+        <dt>Correo</dt><dd id="profileEmail"></dd>
+      </dl>
+      <button class="button button-primary profile-edit-toggle" id="editProfileButton" type="button">Actualizar datos personales</button>
+      <button class="text-button profile-logout" id="logoutButton" type="button">Cerrar sesión</button>
+      <form class="booking-form profile-form" id="profileForm" hidden>
+        <label><span>Número de identificación</span><input id="profileIdInput" type="text" maxlength="30" required></label>
+        <label><span>Teléfono</span><input id="profilePhoneInput" type="tel" maxlength="20" required></label>
+        <label class="notes-field"><span>Email</span><input id="profileEmailInput" type="email" maxlength="150" required></label>
+        <p class="booking-status" id="profileStatus" role="status" aria-live="polite"></p>
+        <button class="button button-primary booking-submit" type="submit">Guardar cambios</button>
+      </form>
+      <h3 class="history-title">Historial de citas</h3>
+      <div id="profileHistory" class="profile-history" aria-live="polite"></div>
+      <button class="text-button profile-close" id="closeProfile" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
   <footer class="site-footer">
     <div class="container footer-content">
       <a class="brand brand-footer" href="#"><span class="brand-mark" aria-hidden="true">C</span><span>CitasPegy</span></a>
@@ -185,9 +271,17 @@
     </div>
   </footer>
 
+  <a class="whatsapp-float" href="https://wa.me/573117302758?text=Hola%2C%20tengo%20una%20duda%20sobre%20mi%20cita%20en%20CitasPegy" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">
+    <span class="whatsapp-tooltip">¿Tienes dudas o deseas hablar con un agente? Escríbenos</span>
+    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M16 .8A15 15 0 0 0 3.1 23.5L1 31l7.7-2A15.1 15.1 0 1 0 16 .8Zm0 27.3a12 12 0 0 1-6.1-1.7l-.4-.2-4.5 1.2 1.2-4.4-.3-.5A12.1 12.1 0 1 1 16 28.1Zm6.6-9c-.4-.2-2.2-1.1-2.5-1.2-.3-.1-.6-.2-.8.2-.2.4-1 1.2-1.2 1.5-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.8-2-1.1-2.7-.3-.7-.6-.6-.8-.6h-.7c-.2 0-.7.1-1 .5-.4.4-1.3 1.3-1.3 3.1s1.3 3.5 1.5 3.8c.2.2 2.6 4 6.3 5.6.9.4 1.6.6 2.1.7.9.3 1.7.2 2.3.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.1-.3-.2-.7-.4Z"/></svg>
+  </a>
+
   <!-- Para conectar Java, escribe el origen, por ejemplo http://localhost:8080. -->
   <script>
     globalThis.CITASPEGY_API_URL = "";
+    // Código solo para probar el alta administrativa en esta demo local.
+    // En producción, la invitación debe validarse exclusivamente en Java/backend.
+    globalThis.CITASPEGY_ADMIN_INVITE_CODE = "PEGY-ADMIN-DEMO";
     globalThis.CITASPEGY_SERVICE_IMAGES = {
       "Corte de cabello": "imagenes/servicios/corte.jpg",
       "Arreglo de barba": "imagenes/servicios/arreglo de barba.jpg",

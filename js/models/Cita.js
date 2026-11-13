@@ -10,7 +10,8 @@ export default class Cita {
     notas = "",
     holdId = null,
     expiraEn = null,
-    codigoReserva = null
+    codigoReserva = null,
+    estado = "Pendiente"
   }) {
     this.servicioId = Number(servicioId);
     this.especialistaId = Number(especialistaId);
@@ -22,6 +23,7 @@ export default class Cita {
     this.holdId = holdId === null ? null : String(holdId);
     this.expiraEn = expiraEn ? new Date(expiraEn) : null;
     this.codigoReserva = codigoReserva;
+    this.estado = String(estado);
   }
 
   estaVigente(ahora = new Date()) {

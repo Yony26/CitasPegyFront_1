@@ -15,3 +15,13 @@ El adaptador de `js/Datos.js` usa estas rutas cuando se configura `CITASPEGY_API
 - `DELETE /api/appointments/holds/{holdId}`: libera una retención y puede responder `204 No Content`.
 
 Las rutas y nombres de los campos son un contrato de ejemplo: coordínalos con tus controladores Java. El backend debe volver a validar disponibilidad, expirar retenciones en cinco minutos y generar el código de reserva; el temporizador del navegador no evita colisiones entre usuarios.
+
+## Funcionalidades de demostración del frontend
+
+- `js/Autenticacion.js` permite elegir Cliente o Administrador. El rol administrador solicita un código configurado en `index.html` (`PEGY-ADMIN-DEMO` para la demo); la sesión de ejemplo vive en `sessionStorage` y la contraseña no se guarda.
+- El perfil permite actualizar identificación, teléfono y correo. El historial y el panel administrativo usan `localStorage` del navegador.
+- `js/AdministracionApp.js` es la vista administrativa independiente: resume citas por fecha, categoría y estado, permite marcar Atendida/No atendida, filtrar citas y exportar CSV.
+- `js/main.js` conserva el flujo del cliente: catálogo, registro, reserva, perfil e historial.
+- El botón de WhatsApp abre una conversación con el número de soporte configurado en `index.html`.
+
+Estas funciones locales son únicamente para probar la interfaz; el código de invitación está expuesto en el frontend y no constituye una protección real. Antes de producción, implementar registro/login, sesión segura, perfil, historial y reportes administrativos en Java; proteger cada ruta con autenticación y roles, y asociar las citas al identificador de cliente en el backend. No almacenar contraseñas en `localStorage` o `sessionStorage`.

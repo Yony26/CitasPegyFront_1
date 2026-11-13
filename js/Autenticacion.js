@@ -1,0 +1,75 @@
+/**
+ * Sesión de demostración en sessionStorage. Nunca conserva contraseñas.
+ * Para producción, reemplazar por autenticación y autorización del backend.
+ */
+const SESSION_KEY = "citaspegy.session";
+
+function leerSesion() {
+  try {
+    const value = sessionStorage.getItem(SESSION_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
+
+function validarDatos(datos) {
+  const nombre = String(datos.nombre ?? "").trim();
+  const identificacion = String(datos.identificacion ?? "").trim();
+  const telefono = String(datos.telefono ?? "").trim();
+  const correo = String(datos.correo ?? "").trim().toLowerCase();
+  if (nombre.length < 3) throw new Error("Escribe tu nombre completo.");
+  if (identificacion.length < 5) throw new Error("Verifica tu número de identificación.");
+  if (!/^\+?[\d\s()-]{7,20}$/.test(telefono)) throw new Error("Verifica tu número de teléfono.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) throw new Error("Escribe un correo electrónico válido.");
+  return { nombre, identificacion, telefono, correo };
+}
+
+export function obtenerSesion() {
+  return leerSesion();
+}
+
+export function cerrarSesion() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    throw new Error("No fue posible cerrar la sesión en este navegador.");
+  }
+}
+
+export function registrarUsuario(datos) {
+  const rol = datos.rol === "Administrador" ? "Administrador" : "Cliente";
+  if (
+    rol === "Administrador" &&
+    (!globalThis.CITASPEGY_ADMIN_INVITE_CODE ||
+      String(datos.codigoInvitacion ?? "") !== globalThis.CITASPEGY_ADMIN_INVITE_CODE)
+  ) {
+    throw new Error("El código de invitación administrativa no es válido.");
+  }
+  const usuario = {
+    ...validarDatos(datos),
+    rol,
+    id: globalThis.crypto?.randomUUID?.() ?? `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  };
+  if (String(datos.contrasena ?? "").length < 8) {
+    throw new Error("La contraseña debe tener al menos 8 caracteres.");
+  }
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
+  } catch {
+    throw new Error("No fue posible guardar la sesión en este navegador.");
+  }
+  return usuario;
+}
+
+export function actualizarPerfil(datos) {
+  const sesion = leerSesion();
+  if (!sesion) throw new Error("Regístrate para continuar.");
+  const usuario = { ...validarDatos({ ...sesion, ...datos }), id: sesion.id, rol: sesion.rol ?? "Cliente" };
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
+  } catch {
+    throw new Error("No fue posible guardar los cambios en este navegador.");
+  }
+  return usuario;
+}

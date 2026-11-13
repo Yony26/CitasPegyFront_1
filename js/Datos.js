@@ -243,8 +243,10 @@ export async function confirmarRetencion(cita, notas = "", nombreCliente = "") {
       throw new Error("La retención ya no existe. Selecciona otro horario.");
     }
     retencionesDemo.delete(cita.holdId);
+    cita.estado = "Confirmada";
+    cita.codigoReserva = `DEMO-${String(++consecutivoDemo).padStart(4, "0")}`;
     reservasDemo.push({ ...cita, nombreCliente, notas, expiraEn: null });
-    return `DEMO-${String(++consecutivoDemo).padStart(4, "0")}`;
+    return cita.codigoReserva;
   }
 
   cita.nombreCliente = nombreCliente;
@@ -256,6 +258,7 @@ export async function confirmarRetencion(cita, notas = "", nombreCliente = "") {
     throw new Error("El backend confirmó la cita sin devolver su código.");
   }
   cita.codigoReserva = respuesta.bookingCode;
+  cita.estado = "Confirmada";
   return respuesta.bookingCode;
 }
 

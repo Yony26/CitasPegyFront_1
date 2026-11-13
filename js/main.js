@@ -11,6 +11,9 @@ import {
   listarServicios
 } from "./Datos.js";
 import Cliente from "./models/Cliente.js";
+import Administracion from "./models/Administracion.js";
+import { actualizarPerfil, cerrarSesion, obtenerSesion, registrarUsuario } from "./Autenticacion.js";
+import { iniciarAdministracion } from "./AdministracionApp.js";
 
 const state = {
   businesses: [],
@@ -21,7 +24,9 @@ const state = {
   hold: null,
   availabilityRequest: 0,
   holdRequest: 0,
-  timerId: null
+  timerId: null,
+  currentUser: obtenerSesion(),
+  pendingServiceId: null
 };
 
 const dom = {
@@ -50,7 +55,17 @@ const dom = {
   receiptService: document.querySelector("#receiptService"),
   receiptSpecialist: document.querySelector("#receiptSpecialist"),
   receiptDate: document.querySelector("#receiptDate"),
-  receiptTime: document.querySelector("#receiptTime")
+  receiptTime: document.querySelector("#receiptTime"),
+  registrationForm: document.querySelector("#registrationForm"),
+  accountDialog: document.querySelector("#accountDialog"),
+  registrationRole: document.querySelector("#registrationRole"),
+  adminInviteField: document.querySelector("#adminInviteField"),
+  adminInviteCode: document.querySelector("#adminInviteCode"),
+  registrationStatus: document.querySelector("#registrationStatus"),
+  profileButton: document.querySelector("#profileButton"),
+  profileDialog: document.querySelector("#profileDialog"),
+  profileForm: document.querySelector("#profileForm"),
+  profileStatus: document.querySelector("#profileStatus")
 };
 
 function escapeHtml(value) {
@@ -256,6 +271,12 @@ async function openBooking(serviceId) {
   const service = state.services.find(item => item.id === Number(serviceId));
   if (!service) return;
 
+  state.currentUser = obtenerSesion();
+  if (!state.currentUser) {
+    openRegistration(service.id);
+    return;
+  }
+
   state.service = service;
   state.holdRequest += 1;
   await releaseCurrentHold();
@@ -270,7 +291,8 @@ async function openBooking(serviceId) {
   dom.date.value = localDate(tomorrow);
   dom.time.value = "";
   dom.notes.value = "";
-  dom.customerName.value = "";
+  dom.customerName.value = state.currentUser?.nombre ?? "";
+  dom.bookingForm.hidden = false;
   dom.confirm.disabled = false;
   dom.confirm.textContent = "Confirmar reserva";
   clearStatus();
@@ -278,6 +300,89 @@ async function openBooking(serviceId) {
   dom.bookingSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
   if (state.specialists.length) await loadAvailableTimes();
+}
+
+function openRegistration(serviceId = null) {
+  state.pendingServiceId = serviceId === null ? null : Number(serviceId);
+  dom.registrationForm.reset();
+  dom.registrationRole.value = "Cliente";
+  dom.adminInviteField.hidden = true;
+  dom.adminInviteCode.required = false;
+  dom.adminInviteCode.value = "";
+  document.querySelector("#registrationPhone").value = "3117302758";
+  dom.registrationStatus.textContent = "";
+  dom.registrationStatus.className = "booking-status";
+  dom.accountDialog.showModal();
+  document.querySelector("#registrationRole").focus();
+}
+
+function registerAccount(event) {
+  event.preventDefault();
+  const form = new FormData(dom.registrationForm);
+  try {
+    state.currentUser = registrarUsuario({
+      nombre: form.get("name"),
+      identificacion: form.get("identification"),
+      telefono: form.get("phone"),
+      correo: form.get("email"),
+      contrasena: form.get("password"),
+      rol: form.get("role"),
+      codigoInvitacion: form.get("adminInviteCode")
+    });
+    const pendingServiceId = state.pendingServiceId;
+    state.pendingServiceId = null;
+    dom.accountDialog.close();
+    if (state.currentUser.rol === "Administrador") {
+      location.reload();
+      return;
+    }
+    dom.profileButton.textContent = "Mi perfil";
+    if (pendingServiceId !== null) openBooking(pendingServiceId);
+  } catch (error) {
+    dom.registrationStatus.textContent = error.message;
+    dom.registrationStatus.className = "booking-status is-error";
+  }
+}
+
+function renderProfile() {
+  const user = obtenerSesion();
+  if (!user) return false;
+  state.currentUser = user;
+  document.querySelector("#profileName").textContent = user.nombre;
+  document.querySelector("#profileId").textContent = user.identificacion;
+  document.querySelector("#profilePhone").textContent = user.telefono;
+  document.querySelector("#profileEmail").textContent = user.correo;
+  document.querySelector("#profileIdInput").value = user.identificacion;
+  document.querySelector("#profilePhoneInput").value = user.telefono;
+  document.querySelector("#profileEmailInput").value = user.correo;
+  const history = Administracion.listarCitas().filter(cita =>
+    cita.usuarioId === user.id || cita.correo?.toLowerCase() === user.correo.toLowerCase()
+  );
+  const historyContainer = document.querySelector("#profileHistory");
+  historyContainer.innerHTML = history.length ? history.map(cita => `
+    <article class="history-item">
+      <strong>${escapeHtml(cita.servicio)} · ${escapeHtml(cita.codigo)}</strong>
+      <span>${escapeHtml(cita.negocio)} · ${escapeHtml(cita.fecha)} ${escapeHtml(cita.hora)} · ${escapeHtml(cita.estado)}</span>
+    </article>`).join("") : '<p class="empty-state">Aún no tienes citas registradas en este navegador.</p>';
+  dom.profileButton.textContent = "Mi perfil";
+  return true;
+}
+
+function saveProfile(event) {
+  event.preventDefault();
+  try {
+    state.currentUser = actualizarPerfil({
+      identificacion: document.querySelector("#profileIdInput").value,
+      telefono: document.querySelector("#profilePhoneInput").value,
+      correo: document.querySelector("#profileEmailInput").value
+    });
+    dom.profileStatus.textContent = "Tus datos se actualizaron.";
+    dom.profileStatus.className = "booking-status is-success";
+    renderProfile();
+  } catch (error) {
+    dom.profileStatus.textContent = error.message;
+    dom.profileStatus.className = "booking-status is-error";
+  }
 }
 
 async function createHold() {
@@ -342,6 +447,13 @@ function startHoldTimer() {
 
 async function confirmBooking(event) {
   event.preventDefault();
+  state.currentUser = obtenerSesion();
+  if (!state.currentUser) {
+    openRegistration(state.service?.id ?? null);
+    dom.registrationStatus.textContent = "Crea tu cuenta antes de confirmar la cita.";
+    dom.registrationStatus.className = "booking-status is-error";
+    return;
+  }
   if (!state.hold) {
     showStatus("Selecciona una hora disponible para continuar.", "error");
     return;
@@ -364,7 +476,7 @@ async function confirmBooking(event) {
   showStatus("Confirmando la cita...", "info");
   let confirmed = false;
   try {
-    const cliente = new Cliente({ nombre: dom.customerName.value.trim() });
+    const cliente = new Cliente({ nombre: state.currentUser.nombre, correo: state.currentUser.correo });
     const specialist = state.specialists.find(item => item.id === Number(dom.specialist.value));
     const booking = {
       cliente,
@@ -378,6 +490,19 @@ async function confirmBooking(event) {
       dom.notes.value.trim(),
       cliente.nombre
     );
+    Administracion.registrarCita({
+      codigo: code,
+      usuarioId: state.currentUser.id,
+      cliente: cliente.nombre,
+      correo: cliente.correo,
+      negocio: state.business.nombre,
+      categoria: state.business.categoria,
+      servicio: state.service.nombre,
+      especialista: specialist?.nombre ?? "No asignado",
+      fecha: dom.date.value,
+      hora: dom.time.value,
+      notas: dom.notes.value.trim()
+    });
     state.hold = null;
     clearInterval(state.timerId);
     state.timerId = null;
@@ -454,6 +579,18 @@ function bindEvents() {
   dom.specialist.addEventListener("change", loadAvailableTimes);
   dom.date.addEventListener("change", loadAvailableTimes);
   dom.time.addEventListener("change", createHold);
+  dom.registrationForm.addEventListener("submit", registerAccount);
+  dom.registrationRole.addEventListener("change", () => {
+    const adminSelected = dom.registrationRole.value === "Administrador";
+    dom.adminInviteField.hidden = !adminSelected;
+    dom.adminInviteCode.required = adminSelected;
+    if (!adminSelected) dom.adminInviteCode.value = "";
+  });
+  document.querySelector("#closeAccount").addEventListener("click", () => {
+    state.pendingServiceId = null;
+    dom.accountDialog.close();
+  });
+  dom.accountDialog.addEventListener("cancel", () => { state.pendingServiceId = null; });
   dom.bookingForm.addEventListener("submit", confirmBooking);
   dom.close.addEventListener("click", closeBooking);
   document.querySelector("#closeReceipt").addEventListener("click", () => dom.receipt.close());
@@ -463,10 +600,67 @@ function bindEvents() {
   dom.receipt.addEventListener("close", () => {
     if (!dom.bookingSection.hidden) dom.close.focus();
   });
+
+  dom.profileButton.addEventListener("click", () => {
+    if (!renderProfile()) {
+      openRegistration();
+      return;
+    }
+    dom.profileForm.hidden = true;
+    dom.profileStatus.textContent = "";
+    dom.profileDialog.showModal();
+  });
+  document.querySelector("#editProfileButton").addEventListener("click", () => {
+    dom.profileForm.hidden = !dom.profileForm.hidden;
+    if (!dom.profileForm.hidden) document.querySelector("#profileIdInput").focus();
+  });
+  dom.profileForm.addEventListener("submit", saveProfile);
+  document.querySelector("#closeProfile").addEventListener("click", () => dom.profileDialog.close());
+  document.querySelector("#logoutButton").addEventListener("click", () => {
+    try {
+      cerrarSesion();
+      state.currentUser = null;
+      dom.profileButton.textContent = "Registrarse";
+      dom.profileDialog.close();
+      if (!dom.bookingSection.hidden) {
+        closeBooking();
+      }
+    } catch (error) {
+      dom.profileStatus.textContent = error.message;
+      dom.profileStatus.className = "booking-status is-error";
+    }
+  });
+  dom.profileDialog.addEventListener("click", event => {
+    if (event.target === dom.profileDialog) dom.profileDialog.close();
+  });
 }
 
 async function initialize() {
   document.querySelector("#currentYear").textContent = String(new Date().getFullYear());
+  if (state.currentUser?.rol === "Administrador") {
+    document.body.classList.add("is-admin");
+    let businesses = [];
+    let catalogError = "";
+    try {
+      businesses = await listarNegocios();
+    } catch (error) {
+      catalogError = error.message;
+    }
+    try {
+      await iniciarAdministracion(businesses);
+      if (catalogError) {
+        const status = document.querySelector("#adminStatus");
+        status.textContent = `No se cargó el catálogo remoto: ${catalogError}`;
+        status.className = "booking-status is-error";
+      }
+    } catch (error) {
+      const adminSection = document.querySelector("#administracion");
+      adminSection.hidden = false;
+      document.querySelector("#adminAppointments").innerHTML = `<p class="empty-state" role="alert">${escapeHtml(error.message)}</p>`;
+    }
+    return;
+  }
+  dom.profileButton.textContent = state.currentUser ? "Mi perfil" : "Registrarse";
   bindEvents();
   dom.businesses.setAttribute("aria-busy", "true");
 
