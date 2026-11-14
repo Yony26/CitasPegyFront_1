@@ -12,7 +12,7 @@ import {
 } from "./Datos.js";
 import Cliente from "./models/Cliente.js";
 import Administracion from "./models/Administracion.js";
-import { actualizarPerfil, cerrarSesion, obtenerSesion, registrarUsuario } from "./Autenticacion.js";
+import { actualizarPerfil, cerrarSesion, iniciarSesion, obtenerSesion, registrarUsuario } from "./Autenticacion.js";
 import { iniciarAdministracion } from "./AdministracionApp.js";
 
 const state = {
@@ -57,12 +57,16 @@ const dom = {
   receiptDate: document.querySelector("#receiptDate"),
   receiptTime: document.querySelector("#receiptTime"),
   registrationForm: document.querySelector("#registrationForm"),
+  loginForm: document.querySelector("#loginForm"),
+  loginStatus: document.querySelector("#loginStatus"),
+  toggleAccountMode: document.querySelector("#toggleAccountMode"),
   accountDialog: document.querySelector("#accountDialog"),
   registrationRole: document.querySelector("#registrationRole"),
   adminInviteField: document.querySelector("#adminInviteField"),
   adminInviteCode: document.querySelector("#adminInviteCode"),
   registrationStatus: document.querySelector("#registrationStatus"),
   profileButton: document.querySelector("#profileButton"),
+  loginButton: document.querySelector("#loginButton"),
   profileDialog: document.querySelector("#profileDialog"),
   profileForm: document.querySelector("#profileForm"),
   profileStatus: document.querySelector("#profileStatus")
@@ -305,6 +309,10 @@ async function openBooking(serviceId) {
 function openRegistration(serviceId = null) {
   state.pendingServiceId = serviceId === null ? null : Number(serviceId);
   dom.registrationForm.reset();
+  dom.loginForm.reset();
+  dom.registrationForm.hidden = false;
+  dom.loginForm.hidden = true;
+  dom.toggleAccountMode.textContent = "¿Ya tienes cuenta? Inicia sesión";
   dom.registrationRole.value = "Cliente";
   dom.adminInviteField.hidden = true;
   dom.adminInviteCode.required = false;
@@ -316,11 +324,24 @@ function openRegistration(serviceId = null) {
   document.querySelector("#registrationRole").focus();
 }
 
-function registerAccount(event) {
+function openLogin() {
+  openRegistration();
+  dom.toggleAccountMode.click();
+  document.querySelector("#loginEmail").focus();
+}
+
+function updateAccountButtons(user) {
+  dom.loginButton.hidden = Boolean(user);
+  dom.profileButton.textContent = user ? user.nombre.split(" ")[0] : "Registrarse";
+  dom.profileButton.setAttribute("aria-label", user ? `Mi perfil: ${user.nombre}` : "Registrarse");
+  dom.profileButton.title = user ? "Abrir mi perfil" : "Crear cuenta";
+}
+
+async function registerAccount(event) {
   event.preventDefault();
   const form = new FormData(dom.registrationForm);
   try {
-    state.currentUser = registrarUsuario({
+    state.currentUser = await registrarUsuario({
       nombre: form.get("name"),
       identificacion: form.get("identification"),
       telefono: form.get("phone"),
@@ -336,11 +357,31 @@ function registerAccount(event) {
       location.reload();
       return;
     }
-    dom.profileButton.textContent = "Mi perfil";
+    updateAccountButtons(state.currentUser);
     if (pendingServiceId !== null) openBooking(pendingServiceId);
   } catch (error) {
     dom.registrationStatus.textContent = error.message;
     dom.registrationStatus.className = "booking-status is-error";
+  }
+}
+
+async function loginAccount(event) {
+  event.preventDefault();
+  const form = new FormData(dom.loginForm);
+  try {
+    state.currentUser = await iniciarSesion(form.get("email"), form.get("password"));
+    const pendingServiceId = state.pendingServiceId;
+    state.pendingServiceId = null;
+    dom.accountDialog.close();
+    if (state.currentUser.rol === "Administrador") {
+      location.reload();
+      return;
+    }
+    updateAccountButtons(state.currentUser);
+    if (pendingServiceId !== null) openBooking(pendingServiceId);
+  } catch (error) {
+    dom.loginStatus.textContent = error.message;
+    dom.loginStatus.className = "booking-status is-error";
   }
 }
 
@@ -580,6 +621,20 @@ function bindEvents() {
   dom.date.addEventListener("change", loadAvailableTimes);
   dom.time.addEventListener("change", createHold);
   dom.registrationForm.addEventListener("submit", registerAccount);
+  dom.loginForm.addEventListener("submit", loginAccount);
+  dom.loginButton.addEventListener("click", openLogin);
+  dom.toggleAccountMode.addEventListener("click", () => {
+    const loginVisible = !dom.loginForm.hidden;
+    dom.loginForm.reset();
+    dom.loginStatus.textContent = "";
+    dom.loginStatus.className = "booking-status";
+    dom.loginForm.hidden = !loginVisible;
+    dom.registrationForm.hidden = loginVisible;
+    dom.toggleAccountMode.textContent = loginVisible
+      ? "¿Ya tienes cuenta? Inicia sesión"
+      : "¿No tienes cuenta? Crear una cuenta";
+    (loginVisible ? document.querySelector("#registrationName") : document.querySelector("#loginEmail")).focus();
+  });
   dom.registrationRole.addEventListener("change", () => {
     const adminSelected = dom.registrationRole.value === "Administrador";
     dom.adminInviteField.hidden = !adminSelected;
@@ -620,7 +675,7 @@ function bindEvents() {
     try {
       cerrarSesion();
       state.currentUser = null;
-      dom.profileButton.textContent = "Registrarse";
+      updateAccountButtons(null);
       dom.profileDialog.close();
       if (!dom.bookingSection.hidden) {
         closeBooking();
@@ -660,7 +715,7 @@ async function initialize() {
     }
     return;
   }
-  dom.profileButton.textContent = state.currentUser ? "Mi perfil" : "Registrarse";
+  updateAccountButtons(state.currentUser);
   bindEvents();
   dom.businesses.setAttribute("aria-busy", "true");
 

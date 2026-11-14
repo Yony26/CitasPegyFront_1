@@ -19,6 +19,7 @@
         <a href="#categorias">Categorías</a>
         <a href="#negocios">Negocios</a>
         <a href="#servicios">Servicios</a>
+        <button class="nav-profile" id="loginButton" type="button">Iniciar sesión</button>
         <button class="nav-profile" id="profileButton" type="button">Registrarse</button>
         <a class="nav-cta" href="#categorias">Reservar cita</a>
       </nav>
@@ -235,6 +236,13 @@
         <p class="booking-status" id="registrationStatus" aria-live="polite" role="status"></p>
         <button class="button button-primary booking-submit" type="submit">Crear cuenta</button>
       </form>
+      <form id="loginForm" class="booking-form registration-form" hidden>
+        <label><span>Correo electrónico</span><input id="loginEmail" name="email" type="email" maxlength="150" autocomplete="email" required></label>
+        <label><span>Contraseña</span><input id="loginPassword" name="password" type="password" autocomplete="current-password" required></label>
+        <p class="booking-status" id="loginStatus" aria-live="polite" role="status"></p>
+        <button class="button button-primary booking-submit" type="submit">Iniciar sesión</button>
+      </form>
+      <button class="text-button profile-close" id="toggleAccountMode" type="button">¿Ya tienes cuenta? Inicia sesión</button>
       <button class="text-button profile-close" id="closeAccount" type="button">Cancelar</button>
     </div>
   </dialog>
